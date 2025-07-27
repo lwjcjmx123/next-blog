@@ -1,7 +1,6 @@
 'use client'
 
-import { useQuery } from '@apollo/client'
-import { gql } from '@apollo/client'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { Badge } from '@/components/ui/badge'
@@ -17,40 +16,7 @@ import {
   Zap,
   Globe
 } from 'lucide-react'
-
-const GET_PROJECT = gql`
-  query GetProject($slug: String!) {
-    project(slug: $slug) {
-      id
-      title
-      description
-      content
-      technologies
-      githubUrl
-      liveUrl
-      imageUrl
-      featured
-      createdAt
-    }
-  }
-`
-
-const GET_RELATED_PROJECTS = gql`
-  query GetRelatedProjects($technologies: [String!]!, $currentProjectId: String!) {
-    projects(
-      filter: { technologies: $technologies }
-      take: 3
-    ) {
-      id
-      title
-      slug
-      description
-      technologies
-      imageUrl
-      featured
-    }
-  }
-`
+import { Project } from '@/lib/data'
 
 interface ProjectPageProps {
   params: {
@@ -59,20 +25,44 @@ interface ProjectPageProps {
 }
 
 export default function ProjectPage({ params }: ProjectPageProps) {
-  const { data, loading, error } = useQuery(GET_PROJECT, {
-    variables: { slug: params.slug },
-  })
+  const [project, setProject] = useState<Project | null>(null)
+  const [relatedProjects, setRelatedProjects] = useState<Project[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
 
-  const { data: relatedData } = useQuery(GET_RELATED_PROJECTS, {
-    variables: {
-      technologies: data?.project?.technologies || [],
-      currentProjectId: data?.project?.id || '',
-    },
-    skip: !data?.project?.technologies?.length,
-  })
+  useEffect(() => {
+    const fetchProject = async () => {
+      try {
+        const response = await fetch(`/api/projects/${params.slug}`)
+        if (response.ok) {
+          const projectData = await response.json()
+          setProject(projectData)
+          
+          // 获取相关项目
+          const allProjectsResponse = await fetch('/api/projects')
+          if (allProjectsResponse.ok) {
+            const allProjects = await allProjectsResponse.json()
+            const related = allProjects
+              .filter((p: Project) => 
+                p.id !== projectData.id && 
+                p.technologies.some(tech => projectData.technologies.includes(tech))
+              )
+              .slice(0, 3)
+            setRelatedProjects(related)
+          }
+        } else {
+          setError(true)
+        }
+      } catch (err) {
+        console.error('Error fetching project:', err)
+        setError(true)
+      } finally {
+        setLoading(false)
+      }
+    }
 
-  const project = data?.project
-  const relatedProjects = relatedData?.projects?.filter((p: any) => p.id !== project?.id) || []
+    fetchProject()
+  }, [params.slug])
 
   if (loading) {
     return (
@@ -200,7 +190,7 @@ export default function ProjectPage({ params }: ProjectPageProps) {
                   创建于 {new Date(project.createdAt).toLocaleDateString('zh-CN', {
                     year: 'numeric',
                     month: 'long',
-                    day: 'numeric',
+                    day: 'numeric'
                   })}
                 </div>
                 <div className="flex items-center gap-1">
@@ -214,31 +204,27 @@ export default function ProjectPage({ params }: ProjectPageProps) {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.3 }}
-                className="mb-6"
+                className="mb-8"
               >
                 <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-3 flex items-center gap-2">
                   <Zap className="h-5 w-5" />
                   技术栈
                 </h3>
                 <div className="flex flex-wrap gap-2">
-                  {project.technologies.map((tech: string) => (
-                    <Badge
-                      key={tech}
-                      variant="secondary"
-                      className="hover:bg-blue-100 dark:hover:bg-blue-900/20 transition-colors"
-                    >
+                  {project.technologies.map((tech) => (
+                    <Badge key={tech} variant="secondary" className="text-sm">
                       {tech}
                     </Badge>
                   ))}
                 </div>
               </motion.div>
 
-              {/* 操作按钮 */}
+              {/* 项目链接 */}
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.4 }}
-                className="flex flex-wrap gap-3 mb-8 pb-6 border-b border-slate-200 dark:border-slate-700"
+                className="flex flex-wrap gap-4 mb-8"
               >
                 {project.githubUrl && (
                   <Button
@@ -259,16 +245,6 @@ export default function ProjectPage({ params }: ProjectPageProps) {
                     在线预览
                   </Button>
                 )}
-                {project.liveUrl && (
-                  <Button
-                    variant="ghost"
-                    onClick={() => window.open(project.liveUrl, '_blank')}
-                    className="flex items-center gap-2"
-                  >
-                    <ExternalLink className="h-4 w-4" />
-                    访问网站
-                  </Button>
-                )}
               </motion.div>
 
               {/* 项目详细内容 */}
@@ -277,23 +253,14 @@ export default function ProjectPage({ params }: ProjectPageProps) {
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ delay: 0.5 }}
-                  className="mb-8"
+                  className="prose prose-slate dark:prose-invert max-w-none mb-8"
                 >
                   <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">
                     项目详情
                   </h3>
-                  <div
-                    className="prose prose-slate dark:prose-invert max-w-none
-                      prose-headings:text-slate-900 dark:prose-headings:text-white
-                      prose-p:text-slate-700 dark:prose-p:text-slate-300
-                      prose-a:text-blue-600 dark:prose-a:text-blue-400
-                      prose-strong:text-slate-900 dark:prose-strong:text-white
-                      prose-code:text-pink-600 dark:prose-code:text-pink-400
-                      prose-pre:bg-slate-900 dark:prose-pre:bg-slate-800
-                      prose-blockquote:border-blue-500 dark:prose-blockquote:border-blue-400
-                      prose-blockquote:text-slate-700 dark:prose-blockquote:text-slate-300"
-                    dangerouslySetInnerHTML={{ __html: project.content }}
-                  />
+                  <div className="text-slate-600 dark:text-slate-300 leading-relaxed whitespace-pre-wrap">
+                    {project.content}
+                  </div>
                 </motion.div>
               )}
             </div>
@@ -304,66 +271,68 @@ export default function ProjectPage({ params }: ProjectPageProps) {
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.7 }}
+              transition={{ delay: 0.6 }}
               className="mt-12"
             >
               <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-6">
                 相关项目
               </h2>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {relatedProjects.map((relatedProject: any, index: number) => (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {relatedProjects.map((relatedProject, index) => (
                   <motion.div
                     key={relatedProject.id}
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.8 + index * 0.1 }}
+                    transition={{ delay: 0.7 + index * 0.1 }}
                   >
-                    <Link href={`/projects/${relatedProject.slug}`}>
-                      <Card className="h-full hover:shadow-lg transition-all duration-300 hover:-translate-y-1 cursor-pointer group overflow-hidden">
-                        {/* 项目图片 */}
-                        <div className="relative h-32 bg-gradient-to-br from-blue-500 to-purple-600 overflow-hidden">
-                          {relatedProject.imageUrl ? (
-                            <img
-                              src={relatedProject.imageUrl}
-                              alt={relatedProject.title}
-                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                            />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center text-white text-2xl font-bold">
-                              {relatedProject.title.charAt(0)}
-                            </div>
-                          )}
-                          {relatedProject.featured && (
-                            <div className="absolute top-2 right-2">
-                              <Badge className="bg-yellow-500 text-yellow-900 border-yellow-400 text-xs">
-                                <Star className="h-3 w-3 fill-current" />
-                              </Badge>
-                            </div>
+                    <Card className="h-full hover:shadow-lg transition-all duration-300 hover:-translate-y-1 group overflow-hidden">
+                      <div className="relative h-32 bg-gradient-to-br from-blue-500 to-purple-600 overflow-hidden">
+                        {relatedProject.imageUrl ? (
+                          <img
+                            src={relatedProject.imageUrl}
+                            alt={relatedProject.title}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-white text-3xl font-bold">
+                            {relatedProject.title.charAt(0)}
+                          </div>
+                        )}
+                        {relatedProject.featured && (
+                          <div className="absolute top-2 right-2">
+                            <Badge className="bg-yellow-500 text-yellow-900 border-yellow-400 text-xs">
+                              <Star className="h-3 w-3 mr-1 fill-current" />
+                              精选
+                            </Badge>
+                          </div>
+                        )}
+                      </div>
+                      <CardContent className="p-4">
+                        <h3 className="font-semibold text-slate-900 dark:text-white mb-2 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                          {relatedProject.title}
+                        </h3>
+                        <p className="text-sm text-slate-600 dark:text-slate-300 mb-3 line-clamp-2">
+                          {relatedProject.description}
+                        </p>
+                        <div className="flex flex-wrap gap-1 mb-3">
+                          {relatedProject.technologies.slice(0, 3).map((tech) => (
+                            <Badge key={tech} variant="secondary" className="text-xs">
+                              {tech}
+                            </Badge>
+                          ))}
+                          {relatedProject.technologies.length > 3 && (
+                            <Badge variant="secondary" className="text-xs">
+                              +{relatedProject.technologies.length - 3}
+                            </Badge>
                           )}
                         </div>
-                        
-                        <CardContent className="p-4">
-                          <h3 className="font-semibold text-slate-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors mb-2 line-clamp-1">
-                            {relatedProject.title}
-                          </h3>
-                          <p className="text-sm text-slate-600 dark:text-slate-400 mb-3 line-clamp-2">
-                            {relatedProject.description}
-                          </p>
-                          <div className="flex flex-wrap gap-1">
-                            {relatedProject.technologies.slice(0, 3).map((tech: string) => (
-                              <Badge key={tech} variant="secondary" className="text-xs">
-                                {tech}
-                              </Badge>
-                            ))}
-                            {relatedProject.technologies.length > 3 && (
-                              <Badge variant="secondary" className="text-xs">
-                                +{relatedProject.technologies.length - 3}
-                              </Badge>
-                            )}
-                          </div>
-                        </CardContent>
-                      </Card>
-                    </Link>
+                        <Link href={`/projects/${relatedProject.slug}`}>
+                          <Button variant="outline" size="sm" className="w-full">
+                            查看详情
+                          </Button>
+                        </Link>
+                      </CardContent>
+                    </Card>
                   </motion.div>
                 ))}
               </div>

@@ -1,32 +1,36 @@
 "use client"
 
-import { useQuery } from '@apollo/client'
-import { gql } from '@apollo/client'
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { ExternalLink, Github, ArrowRight } from 'lucide-react'
-
-const GET_FEATURED_PROJECTS = gql`
-  query GetFeaturedProjects {
-    projects(filter: { featured: true }, take: 3) {
-      id
-      title
-      slug
-      description
-      technologies
-      githubUrl
-      liveUrl
-      imageUrl
-    }
-  }
-`
+import { Project } from '@/lib/data'
 
 export function FeaturedProjects() {
-  const { data, loading, error } = useQuery(GET_FEATURED_PROJECTS)
-  
-  const projects = data?.projects || []
+  const [projects, setProjects] = useState<Project[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const fetchFeaturedProjects = async () => {
+      try {
+        const response = await fetch('/api/projects/featured')
+        if (!response.ok) {
+          throw new Error('Failed to fetch projects')
+        }
+        const data = await response.json()
+        setProjects(data.slice(0, 3)) // 只取前3个
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'An error occurred')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchFeaturedProjects()
+  }, [])
   
   if (loading) {
     return (

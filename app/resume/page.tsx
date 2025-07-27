@@ -1,182 +1,69 @@
 "use client";
 
-import { useQuery } from "@apollo/client";
-import { gql } from "@apollo/client";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import ReactMarkdown from "react-markdown";
 import remarkBreaks from "remark-breaks";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import {
+  User,
   Mail,
   Phone,
   MapPin,
   Globe,
   Github,
   Linkedin,
-  Download,
+  Briefcase,
+  GraduationCap,
+  Code,
   Calendar,
   Building,
-  GraduationCap,
   Award,
   Languages,
-  Code,
-  Briefcase,
-  User,
 } from "lucide-react";
 
-const GET_RESUME = gql`
-  query GetResume {
-    resume {
-      id
-      data
-      createdAt
-      updatedAt
-    }
-  }
-`;
+interface Resume {
+  id: string;
+  data: string;
+  updatedAt: string;
+}
 
 export default function ResumePage() {
-  const { data, loading, error } = useQuery(GET_RESUME);
+  const [resume, setResume] = useState<Resume | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const resume = data?.resume;
-
-  const handleDownload = async () => {
-    try {
-      // 动态导入库以减少初始包大小
-      const html2canvas = (await import("html2canvas")).default;
-      const jsPDF = (await import("jspdf")).jsPDF;
-
-      // 获取简历内容元素
-      const resumeElement = document.getElementById("resume-content");
-      if (!resumeElement) {
-        console.error("Resume content element not found");
-        return;
-      }
-
-      // 临时隐藏下载按钮和其他不需要的元素
-      const elementsToHide = document.querySelectorAll(
-        '[class*="print:hidden"]'
-      );
-      elementsToHide.forEach((el) => {
-        (el as HTMLElement).style.display = "none";
-      });
-
-      // 设置canvas选项以获得更好的质量
-      const canvas = await html2canvas(resumeElement, {
-        scale: 2, // 提高分辨率
-        useCORS: true,
-        allowTaint: true,
-        backgroundColor: "#ffffff",
-        width: resumeElement.scrollWidth,
-        height: resumeElement.scrollHeight,
-        scrollX: 0,
-        scrollY: 0,
-        x: 0,
-        y: 0,
-      });
-
-      // 恢复隐藏的元素
-      elementsToHide.forEach((el) => {
-        (el as HTMLElement).style.display = "";
-      });
-
-      // 创建PDF
-      const imgData = canvas.toDataURL("image/png");
-      const pdf = new jsPDF({
-        orientation: "portrait",
-        unit: "mm",
-        format: "a4",
-      });
-
-      // 计算图片在PDF中的尺寸，减少边距
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = pdf.internal.pageSize.getHeight();
-      const imgWidth = canvas.width;
-      const imgHeight = canvas.height;
-
-      // 设置边距（单位：mm）
-      const margin = 10;
-      const availableWidth = pdfWidth - 2 * margin;
-      const availableHeight = pdfHeight - 2 * margin;
-
-      const ratio = Math.min(
-        availableWidth / imgWidth,
-        availableHeight / imgHeight
-      );
-      const scaledWidth = imgWidth * ratio;
-      const scaledHeight = imgHeight * ratio;
-
-      // 居中显示
-      const imgX = (pdfWidth - scaledWidth) / 2;
-      const imgY = margin;
-
-      // 如果内容高度超过一页，需要分页处理
-      if (scaledHeight > pdfHeight) {
-        // 分页处理
-        let position = 0;
-        const pageHeight = pdfHeight;
-
-        while (position < scaledHeight) {
-          if (position > 0) {
-            pdf.addPage();
-          }
-
-          pdf.addImage(
-            imgData,
-            "PNG",
-            imgX,
-            imgY - position,
-            scaledWidth,
-            scaledHeight
-          );
-
-          position += availableHeight;
+  useEffect(() => {
+    const fetchResume = async () => {
+      try {
+        const response = await fetch("/api/resume");
+        if (!response.ok) {
+          throw new Error("Failed to fetch resume");
         }
-      } else {
-        // 单页处理
-        pdf.addImage(imgData, "PNG", imgX, imgY, scaledWidth, scaledHeight);
+        const data = await response.json();
+        setResume(data);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "An error occurred");
+      } finally {
+        setLoading(false);
       }
+    };
 
-      // 下载PDF - 使用指定的文件名格式
-      const currentDate = new Date().toISOString().split("T")[0];
-      const fileName = `刘文俊-web前端-${currentDate}.pdf`;
-      pdf.save(fileName);
-    } catch (error) {
-      console.error("PDF生成失败:", error);
-      // 如果PDF生成失败，回退到打印功能
-      window.print();
-    }
-  };
+    fetchResume();
+  }, []);
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
-        <div className="container mx-auto px-4 py-8">
-          <div className="max-w-4xl mx-auto">
-            <div className="animate-pulse space-y-6">
-              <div className="h-32 bg-slate-200 dark:bg-slate-700 rounded"></div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="md:col-span-2 space-y-4">
-                  {[...Array(4)].map((_, i) => (
-                    <div
-                      key={i}
-                      className="h-48 bg-slate-200 dark:bg-slate-700 rounded"
-                    ></div>
-                  ))}
-                </div>
-                <div className="space-y-4">
-                  {[...Array(3)].map((_, i) => (
-                    <div
-                      key={i}
-                      className="h-32 bg-slate-200 dark:bg-slate-700 rounded"
-                    ></div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-slate-600 dark:text-slate-300">加载简历中...</p>
         </div>
       </div>
     );
@@ -184,15 +71,14 @@ export default function ResumePage() {
 
   if (error || !resume) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
-        <div className="container mx-auto px-4 py-8">
-          <div className="max-w-4xl mx-auto text-center">
-            <div className="text-6xl mb-4">📄</div>
-            <h1 className="text-2xl font-bold mb-4">简历暂未发布</h1>
-            <p className="text-slate-600 dark:text-slate-400">
-              简历内容正在准备中，请稍后再来查看。
-            </p>
-          </div>
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white mb-4">
+            简历加载失败
+          </h1>
+          <p className="text-slate-600 dark:text-slate-300">
+            {error || "简历数据不存在"}
+          </p>
         </div>
       </div>
     );
@@ -218,7 +104,7 @@ export default function ResumePage() {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 print:bg-white">
       <div className="container mx-auto px-4 py-8 print:px-0 print:py-0">
         <div className="max-w-4xl mx-auto">
-          {/* 页面标题和下载按钮 */}
+          {/* 页面标题 */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -233,13 +119,6 @@ export default function ResumePage() {
                 {new Date(resume.updatedAt).toLocaleDateString("zh-CN")}
               </p>
             </div>
-            {/* <Button
-              onClick={handleDownload}
-              className="flex items-center gap-2"
-            >
-              <Download className="h-4 w-4" />
-              下载 PDF
-            </Button> */}
           </motion.div>
 
           {/* 简历内容开始 */}

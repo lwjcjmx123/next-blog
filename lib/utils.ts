@@ -6,19 +6,33 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export function formatDate(date: string | Date) {
+  if (!date) return '未知日期'
+  
+  const dateObj = new Date(date)
+  if (isNaN(dateObj.getTime())) {
+    return '未知日期'
+  }
+  
   return new Intl.DateTimeFormat('zh-CN', {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
-  }).format(new Date(date))
+  }).format(dateObj)
 }
 
 export function formatDateShort(date: string | Date) {
+  if (!date) return '未知日期'
+  
+  const dateObj = new Date(date)
+  if (isNaN(dateObj.getTime())) {
+    return '未知日期'
+  }
+  
   return new Intl.DateTimeFormat('zh-CN', {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
-  }).format(new Date(date))
+  }).format(dateObj)
 }
 
 export function slugify(text: string) {

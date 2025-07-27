@@ -1,0 +1,66 @@
+---
+title: "Next.js 开发指南"
+slug: "next-js-guide"
+excerpt: "深入了解 Next.js 的核心概念和最佳实践。"
+date: "2024-01-20"
+published: true
+category: "技术"
+tags: ["Next.js", "React", "前端开发"]
+author: "hailong"
+readingTime: 8
+---
+
+# Next.js 开发指南
+
+Next.js 是一个强大的 React 框架，提供了许多开箱即用的功能。
+
+## 核心特性
+
+### 1. 服务端渲染 (SSR)
+
+Next.js 支持服务端渲染，可以提高 SEO 和首屏加载速度。
+
+```jsx
+export async function getServerSideProps() {
+  const data = await fetchData();
+  return {
+    props: { data }
+  };
+}
+```
+
+### 2. 静态生成 (SSG)
+
+静态生成可以在构建时预渲染页面，提供最佳性能。
+
+```jsx
+export async function getStaticProps() {
+  const posts = await getPosts();
+  return {
+    props: { posts },
+    revalidate: 60 // ISR
+  };
+}
+```
+
+### 3. API 路由
+
+Next.js 允许你在同一个项目中创建 API 端点。
+
+```javascript
+// pages/api/hello.js
+export default function handler(req, res) {
+  res.status(200).json({ message: 'Hello World' });
+}
+```
+
+## 最佳实践
+
+1. **使用 TypeScript** - 提供类型安全
+2. **优化图片** - 使用 `next/image` 组件
+3. **代码分割** - 利用动态导入
+4. **SEO 优化** - 使用 `next/head`
+
+## 总结
+
+Next.js 是现代 React 开发的绝佳选择，它简化了许多复杂的配置，让开发者可以专注于业务逻辑。

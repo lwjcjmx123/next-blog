@@ -1,34 +1,37 @@
 "use client"
 
-import { useQuery } from '@apollo/client'
-import { gql } from '@apollo/client'
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Calendar, Clock, ArrowRight } from 'lucide-react'
-import { formatDate, readingTime } from '@/lib/utils'
-
-const GET_LATEST_POSTS = gql`
-  query GetLatestPosts {
-    posts(filter: { published: true }, take: 3) {
-      id
-      title
-      slug
-      excerpt
-      content
-      publishedAt
-      category {
-        name
-      }
-    }
-  }
-`
+import { formatDate } from '@/lib/utils'
+import { Post } from '@/lib/data'
 
 export function LatestPosts() {
-  const { data, loading, error } = useQuery(GET_LATEST_POSTS)
-  
-  const posts = data?.posts || []
+  const [posts, setPosts] = useState<Post[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const fetchLatestPosts = async () => {
+      try {
+        const response = await fetch('/api/posts/latest')
+        if (!response.ok) {
+          throw new Error('Failed to fetch posts')
+        }
+        const data = await response.json()
+        setPosts(data.slice(0, 3)) // 只取前3篇
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'An error occurred')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchLatestPosts()
+  }, [])
   
   if (loading) {
     return (
@@ -106,11 +109,11 @@ export function LatestPosts() {
                 <CardHeader>
                   <div className="flex items-center justify-between text-sm text-muted-foreground mb-2">
                     <span className="bg-primary/10 text-primary px-2 py-1 rounded-md text-xs font-medium">
-                      {post.category?.name || '未分类'}
+                      {post.category || '未分类'}
                     </span>
                     <div className="flex items-center space-x-1">
                       <Calendar className="h-3 w-3" />
-                      <span>{formatDate(post.publishedAt)}</span>
+                      <span>{formatDate(post.date)}</span>
                     </div>
                   </div>
                   <CardTitle className="group-hover:text-primary transition-colors">
@@ -126,7 +129,7 @@ export function LatestPosts() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-1 text-xs text-muted-foreground">
                       <Clock className="h-3 w-3" />
-                      <span>{readingTime(post.content || '')}</span>
+                      <span>{post.readingTime ? `${post.readingTime} 分钟阅读` : '5 分钟阅读'}</span>
                     </div>
                     <Link
                       href={`/blog/${post.slug}`}

@@ -1,0 +1,44 @@
+[
+  {
+    "id": "1",
+    "title": "个人博客系统",
+    "slug": "personal-blog",
+    "description": "基于 Next.js 和 MDX 的现代化个人博客系统",
+    "content": "这是一个功能完整的个人博客系统，支持 MDX 格式的文章编写、项目展示和在线简历。采用了现代化的技术栈，包括 Next.js 14、TypeScript、Tailwind CSS 等。\n\n## 主要功能\n\n- 📝 MDX 格式博客文章\n- 🎨 响应式设计\n- 📱 移动端适配\n- ⚡ 静态生成优化\n- 🔍 SEO 友好\n\n## 技术栈\n\n- **前端**: Next.js 14, TypeScript, Tailwind CSS\n- **内容**: MDX, JSON\n- **部署**: Vercel",
+    "technologies": ["Next.js", "TypeScript", "Tailwind CSS", "MDX", "Vercel"],
+    "githubUrl": "https://github.com/hailong/personal-blog",
+    "liveUrl": "https://hailong-blog.vercel.app",
+    "imageUrl": "/images/projects/blog-preview.jpg",
+    "featured": true,
+    "published": true,
+    "createdAt": "2024-01-15T00:00:00Z"
+  },
+  {
+    "id": "2",
+    "title": "任务管理应用",
+    "slug": "task-manager",
+    "description": "一个简洁高效的任务管理应用，支持团队协作",
+    "content": "这是一个现代化的任务管理应用，旨在帮助个人和团队更好地组织和跟踪工作进度。\n\n## 核心功能\n\n- ✅ 任务创建和管理\n- 👥 团队协作\n- 📊 进度跟踪\n- 🔔 提醒通知\n- 📈 数据统计\n\n## 技术特点\n\n- 实时同步\n- 离线支持\n- 跨平台兼容\n- 数据安全",
+    "technologies": ["React", "Node.js", "MongoDB", "Socket.io", "PWA"],
+    "githubUrl": "https://github.com/hailong/task-manager",
+    "liveUrl": "https://task-manager-demo.vercel.app",
+    "imageUrl": "/images/projects/task-manager-preview.jpg",
+    "featured": true,
+    "published": true,
+    "createdAt": "2024-01-10T00:00:00Z"
+  },
+  {
+    "id": "3",
+    "title": "天气预报应用",
+    "slug": "weather-app",
+    "description": "基于地理位置的实时天气预报应用",
+    "content": "一个美观实用的天气预报应用，提供准确的天气信息和预报。\n\n## 主要功能\n\n- 🌤️ 实时天气信息\n- 📍 地理位置定位\n- 📅 7天天气预报\n- 🌡️ 详细气象数据\n- 🎨 动态背景效果\n\n## 数据来源\n\n- OpenWeatherMap API\n- 地理位置服务\n- 实时数据更新",
+    "technologies": ["Vue.js", "JavaScript", "CSS3", "OpenWeatherMap API"],
+    "githubUrl": "https://github.com/hailong/weather-app",
+    "liveUrl": "https://weather-app-demo.netlify.app",
+    "imageUrl": "/images/projects/weather-app-preview.jpg",
+    "featured": false,
+    "published": true,
+    "createdAt": "2024-01-05T00:00:00Z"
+  }
+]

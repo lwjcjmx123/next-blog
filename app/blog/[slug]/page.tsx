@@ -1,12 +1,11 @@
-'use client'
+'use client';
 
-import { useQuery } from '@apollo/client'
-import { gql } from '@apollo/client'
-import Link from 'next/link'
-import { motion } from 'framer-motion'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
+import { useState, useEffect } from 'react';
+import Link from 'next/link';
+import { motion } from 'framer-motion';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import { 
   Calendar, 
   Clock, 
@@ -17,57 +16,10 @@ import {
   Facebook, 
   Link as LinkIcon,
   Tag
-} from 'lucide-react'
-import { useToast } from '@/components/ui/use-toast'
-import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
-import remarkBreaks from 'remark-breaks'
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
-import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
-
-const GET_POST = gql`
-  query GetPost($slug: String!) {
-    post(slug: $slug) {
-      id
-      title
-      content
-      excerpt
-      publishedAt
-      author {
-        name
-        email
-      }
-      category {
-        id
-        name
-        slug
-      }
-      tags {
-        id
-        name
-        slug
-      }
-    }
-  }
-`
-
-const GET_RELATED_POSTS = gql`
-  query GetRelatedPosts($categoryId: String!) {
-    posts(
-      filter: { published: true, categoryId: $categoryId }
-      take: 5
-    ) {
-      id
-      title
-      slug
-      excerpt
-      publishedAt
-      category {
-        name
-      }
-    }
-  }
-`
+} from 'lucide-react';
+import { useToast } from '@/components/ui/use-toast';
+import { Post } from '@/lib/data';
+import MDXContent from '@/components/mdx-content';
 
 interface BlogPostPageProps {
   params: {
@@ -76,53 +28,81 @@ interface BlogPostPageProps {
 }
 
 export default function BlogPostPage({ params }: BlogPostPageProps) {
-  const { toast } = useToast()
-  
-  const { data, loading, error } = useQuery(GET_POST, {
-    variables: { slug: params.slug },
-  })
+  const { toast } = useToast();
+  const [post, setPost] = useState<Post | null>(null);
+  const [relatedPosts, setRelatedPosts] = useState<Post[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const { data: relatedData } = useQuery(GET_RELATED_POSTS, {
-    variables: {
-      categoryId: data?.post?.category?.id,
-    },
-    skip: !data?.post?.category?.id,
-  })
+  useEffect(() => {
+    const fetchPost = async () => {
+      try {
+        const response = await fetch(`/api/posts/${params.slug}`);
+        if (!response.ok) {
+          throw new Error('Post not found');
+        }
+        const postData = await response.json();
+        setPost(postData);
 
-  const post = data?.post
-  const relatedPosts = relatedData?.posts?.filter((p: any) => p.id !== post?.id).slice(0, 3) || []
+        // 获取相关文章
+        if (postData.category) {
+          const relatedResponse = await fetch(`/api/posts?category=${postData.category}&limit=4`);
+          if (relatedResponse.ok) {
+            const relatedData = await relatedResponse.json();
+            // 过滤掉当前文章
+            const filtered = relatedData.filter((p: Post) => p.slug !== params.slug).slice(0, 3);
+            setRelatedPosts(filtered);
+          }
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to fetch post');
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const shareUrl = typeof window !== 'undefined' ? window.location.href : ''
-  const shareTitle = post?.title || ''
+    fetchPost();
+  }, [params.slug]);
+
+  const shareUrl = typeof window !== 'undefined' ? window.location.href : '';
+  const shareTitle = post?.title || '';
 
   const handleShare = async (platform?: string) => {
     if (platform === 'twitter') {
       window.open(
         `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareTitle)}&url=${encodeURIComponent(shareUrl)}`,
         '_blank'
-      )
+      );
     } else if (platform === 'facebook') {
       window.open(
         `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`,
         '_blank'
-      )
+      );
     } else {
       // 复制链接
       try {
-        await navigator.clipboard.writeText(shareUrl)
+        await navigator.clipboard.writeText(shareUrl);
         toast({
           title: '链接已复制',
           description: '文章链接已复制到剪贴板',
-        })
+        });
       } catch (err) {
         toast({
           title: '复制失败',
           description: '无法复制链接到剪贴板',
           variant: 'destructive',
-        })
+        });
       }
     }
-  }
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('zh-CN', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+  };
 
   if (loading) {
     return (
@@ -142,7 +122,7 @@ export default function BlogPostPage({ params }: BlogPostPageProps) {
           </div>
         </div>
       </div>
-    )
+    );
   }
 
   if (error || !post) {
@@ -164,7 +144,7 @@ export default function BlogPostPage({ params }: BlogPostPageProps) {
           </div>
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -200,9 +180,9 @@ export default function BlogPostPage({ params }: BlogPostPageProps) {
                   transition={{ delay: 0.1 }}
                   className="mb-4"
                 >
-                  <Link href={`/blog?category=${post.category.slug}`}>
+                  <Link href={`/blog?category=${post.category}`}>
                     <Badge className="hover:bg-blue-600 transition-colors cursor-pointer">
-                      {post.category.name}
+                      {post.category}
                     </Badge>
                   </Link>
                 </motion.div>
@@ -227,22 +207,16 @@ export default function BlogPostPage({ params }: BlogPostPageProps) {
               >
                 <div className="flex items-center gap-1">
                   <User className="h-4 w-4" />
-                  {post.author.name}
+                  {post.author}
                 </div>
                 <div className="flex items-center gap-1">
                   <Calendar className="h-4 w-4" />
-                  {new Date(post.publishedAt).toLocaleDateString('zh-CN', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric',
-                  })}
+                  {formatDate(post.date)}
                 </div>
-                {post.readingTime && (
-                  <div className="flex items-center gap-1">
-                    <Clock className="h-4 w-4" />
-                    {post.readingTime} 分钟阅读
-                  </div>
-                )}
+                <div className="flex items-center gap-1">
+                  <Clock className="h-4 w-4" />
+                  {post.readingTime} 分钟阅读
+                </div>
               </motion.div>
 
               {/* 标签 */}
@@ -255,17 +229,13 @@ export default function BlogPostPage({ params }: BlogPostPageProps) {
                 >
                   <Tag className="h-4 w-4 text-slate-500" />
                   <div className="flex flex-wrap gap-2">
-                    {post.tags.map((tag: any) => (
-                      <Link key={tag.id} href={`/blog?tag=${tag.slug}`}>
+                    {post.tags.map((tag) => (
+                      <Link key={tag} href={`/blog?tag=${tag}`}>
                         <Badge
                           variant="outline"
                           className="hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-pointer"
-                          style={{
-                            borderColor: tag.color,
-                            color: tag.color,
-                          }}
                         >
-                          {tag.name}
+                          {tag}
                         </Badge>
                       </Link>
                     ))}
@@ -322,88 +292,7 @@ export default function BlogPostPage({ params }: BlogPostPageProps) {
                   prose-blockquote:border-blue-500 dark:prose-blockquote:border-blue-400
                   prose-blockquote:text-slate-700 dark:prose-blockquote:text-slate-300"
               >
-                <ReactMarkdown
-                  remarkPlugins={[remarkGfm, remarkBreaks]}
-                  components={{
-                     code({ className, children, ...props }: any) {
-                       const match = /language-(\w+)/.exec(className || '')
-                       const isInline = !match
-                       return !isInline ? (
-                         <SyntaxHighlighter
-                           style={oneDark as any}
-                           language={match[1]}
-                           PreTag="div"
-                           className="rounded-md"
-                         >
-                           {String(children).replace(/\n$/, '')}
-                         </SyntaxHighlighter>
-                       ) : (
-                         <code className={className} {...props}>
-                           {children}
-                         </code>
-                       )
-                     },
-                    // 自定义链接组件，支持内部链接
-                    a({ href, children, ...props }) {
-                      if (href?.startsWith('/')) {
-                        return (
-                          <Link href={href} className="text-blue-600 dark:text-blue-400 hover:underline">
-                            {children}
-                          </Link>
-                        )
-                      }
-                      return (
-                        <a
-                          href={href}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-blue-600 dark:text-blue-400 hover:underline"
-                          {...props}
-                        >
-                          {children}
-                        </a>
-                      )
-                    },
-                    // 自定义图片组件，支持响应式
-                    img({ src, alt, ...props }) {
-                      return (
-                        <img
-                          src={src}
-                          alt={alt}
-                          className="rounded-lg shadow-md max-w-full h-auto"
-                          loading="lazy"
-                          {...props}
-                        />
-                      )
-                    },
-                    // 自定义表格样式
-                    table({ children, ...props }) {
-                      return (
-                        <div className="overflow-x-auto">
-                          <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700" {...props}>
-                            {children}
-                          </table>
-                        </div>
-                      )
-                    },
-                    th({ children, ...props }) {
-                      return (
-                        <th className="px-6 py-3 bg-slate-50 dark:bg-slate-800 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider" {...props}>
-                          {children}
-                        </th>
-                      )
-                    },
-                    td({ children, ...props }) {
-                      return (
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-900 dark:text-slate-300" {...props}>
-                          {children}
-                        </td>
-                      )
-                    }
-                  }}
-                >
-                  {post.content}
-                </ReactMarkdown>
+                <MDXContent content={post.content} />
               </motion.div>
             </div>
           </motion.article>
@@ -420,7 +309,7 @@ export default function BlogPostPage({ params }: BlogPostPageProps) {
                 相关文章
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {relatedPosts.map((relatedPost: any, index: number) => (
+                {relatedPosts.map((relatedPost, index) => (
                   <motion.div
                     key={relatedPost.id}
                     initial={{ opacity: 0, y: 20 }}
@@ -438,10 +327,10 @@ export default function BlogPostPage({ params }: BlogPostPageProps) {
                           </p>
                           <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
                             <Calendar className="h-3 w-3" />
-                            {new Date(relatedPost.publishedAt).toLocaleDateString('zh-CN')}
+                            {formatDate(relatedPost.date)}
                             {relatedPost.category && (
                               <Badge variant="secondary" className="text-xs">
-                                {relatedPost.category.name}
+                                {relatedPost.category}
                               </Badge>
                             )}
                           </div>
@@ -456,5 +345,5 @@ export default function BlogPostPage({ params }: BlogPostPageProps) {
         </div>
       </div>
     </div>
-  )
+  );
 }

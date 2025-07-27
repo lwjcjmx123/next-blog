@@ -1,8 +1,6 @@
 'use client'
 
-import { useState } from 'react'
-import { useQuery } from '@apollo/client'
-import { gql } from '@apollo/client'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -18,23 +16,7 @@ import {
   ChevronLeft,
   ChevronRight
 } from 'lucide-react'
-
-const GET_PROJECTS = gql`
-  query GetProjects($filter: ProjectsFilter, $skip: Int, $take: Int) {
-    projects(filter: $filter, skip: $skip, take: $take) {
-      id
-      title
-      slug
-      description
-      technologies
-      githubUrl
-      liveUrl
-      imageUrl
-      featured
-      createdAt
-    }
-  }
-`
+import { Project } from '@/lib/data'
 
 const PROJECTS_PER_PAGE = 6
 
@@ -47,27 +29,67 @@ const TECH_OPTIONS = [
 ]
 
 export default function ProjectsPage() {
+  const [projects, setProjects] = useState<Project[]>([])
+  const [filteredProjects, setFilteredProjects] = useState<Project[]>([])
+  const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedTechs, setSelectedTechs] = useState<string[]>([])
   const [showFeaturedOnly, setShowFeaturedOnly] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
   const [showTechFilter, setShowTechFilter] = useState(false)
 
-  const { data, loading } = useQuery(GET_PROJECTS, {
-    variables: {
-      filter: {
-        search: searchTerm || undefined,
-        technologies: selectedTechs.length > 0 ? selectedTechs : undefined,
-        featured: showFeaturedOnly || undefined,
-      },
-      skip: (currentPage - 1) * PROJECTS_PER_PAGE,
-      take: PROJECTS_PER_PAGE,
-    },
-  })
+  // 获取项目数据
+  useEffect(() => {
+    const fetchProjects = async () => {
+      try {
+        const response = await fetch('/api/projects')
+        if (response.ok) {
+          const data = await response.json()
+          setProjects(data)
+        }
+      } catch (error) {
+        console.error('Error fetching projects:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
 
-  const projects = data?.projects || []
-  const totalProjects = projects.length
+    fetchProjects()
+  }, [])
+
+  // 筛选项目
+  useEffect(() => {
+    let filtered = projects
+
+    // 搜索筛选
+    if (searchTerm) {
+      filtered = filtered.filter(project => 
+        project.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        project.description.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+    }
+
+    // 技术栈筛选
+    if (selectedTechs.length > 0) {
+      filtered = filtered.filter(project => 
+        selectedTechs.some(tech => project.technologies.includes(tech))
+      )
+    }
+
+    // 精选筛选
+    if (showFeaturedOnly) {
+      filtered = filtered.filter(project => project.featured)
+    }
+
+    setFilteredProjects(filtered)
+    setCurrentPage(1)
+  }, [projects, searchTerm, selectedTechs, showFeaturedOnly])
+
+  const totalProjects = filteredProjects.length
   const totalPages = Math.ceil(totalProjects / PROJECTS_PER_PAGE)
+  const startIndex = (currentPage - 1) * PROJECTS_PER_PAGE
+  const endIndex = startIndex + PROJECTS_PER_PAGE
+  const currentProjects = filteredProjects.slice(startIndex, endIndex)
 
   const handleTechToggle = (tech: string) => {
     setSelectedTechs(prev => 
@@ -75,19 +97,16 @@ export default function ProjectsPage() {
         ? prev.filter(t => t !== tech)
         : [...prev, tech]
     )
-    setCurrentPage(1)
   }
 
   const handleSearch = (term: string) => {
     setSearchTerm(term)
-    setCurrentPage(1)
   }
 
   const clearFilters = () => {
     setSearchTerm('')
     setSelectedTechs([])
     setShowFeaturedOnly(false)
-    setCurrentPage(1)
   }
 
   return (
@@ -138,10 +157,7 @@ export default function ProjectsPage() {
                 <div className="flex gap-2">
                   <Button
                     variant={showFeaturedOnly ? "default" : "outline"}
-                    onClick={() => {
-                      setShowFeaturedOnly(!showFeaturedOnly)
-                      setCurrentPage(1)
-                    }}
+                    onClick={() => setShowFeaturedOnly(!showFeaturedOnly)}
                     className="flex items-center gap-2"
                   >
                     <Star className={`h-4 w-4 ${showFeaturedOnly ? 'fill-current' : ''}`} />
@@ -228,13 +244,13 @@ export default function ProjectsPage() {
               </Card>
             ))}
           </div>
-        ) : projects.length > 0 ? (
+        ) : currentProjects.length > 0 ? (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
           >
-            {projects.map((project: any, index: number) => (
+            {currentProjects.map((project, index) => (
               <motion.div
                 key={project.id}
                 initial={{ opacity: 0, y: 20 }}
@@ -277,7 +293,7 @@ export default function ProjectsPage() {
                   <CardContent className="flex-1 flex flex-col">
                     {/* 技术栈 */}
                     <div className="flex flex-wrap gap-1 mb-4">
-                      {project.technologies.slice(0, 4).map((tech: string) => (
+                      {project.technologies.slice(0, 4).map((tech) => (
                         <Badge key={tech} variant="secondary" className="text-xs">
                           {tech}
                         </Badge>
