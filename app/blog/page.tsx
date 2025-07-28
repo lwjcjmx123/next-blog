@@ -41,9 +41,9 @@ export default function BlogPage() {
     const fetchData = async () => {
       try {
         const [postsRes, categoriesRes, tagsRes] = await Promise.all([
-          fetch('/api/posts'),
-          fetch('/api/categories'),
-          fetch('/api/tags')
+          fetch("/api/posts"),
+          fetch("/api/categories"),
+          fetch("/api/tags"),
         ]);
 
         const postsData = await postsRes.json();
@@ -55,7 +55,7 @@ export default function BlogPage() {
         setCategories(categoriesData);
         setTags(tagsData);
       } catch (error) {
-        console.error('Error fetching data:', error);
+        console.error("Error fetching data:", error);
       } finally {
         setLoading(false);
       }
@@ -103,9 +103,7 @@ export default function BlogPage() {
 
   const handleTagToggle = (tag: string) => {
     setSelectedTags((prev) =>
-      prev.includes(tag)
-        ? prev.filter((t) => t !== tag)
-        : [...prev, tag]
+      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
     );
   };
 
@@ -124,10 +122,10 @@ export default function BlogPage() {
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('zh-CN', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
+    return new Date(dateString).toLocaleDateString("zh-CN", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
     });
   };
 
@@ -212,11 +210,15 @@ export default function BlogPage() {
                       全部分类 ({allPosts.length})
                     </Button>
                     {categories.map((category) => {
-                      const count = allPosts.filter(post => post.category === category).length;
+                      const count = allPosts.filter(
+                        (post) => post.category === category
+                      ).length;
                       return (
                         <Button
                           key={category}
-                          variant={selectedCategory === category ? "default" : "ghost"}
+                          variant={
+                            selectedCategory === category ? "default" : "ghost"
+                          }
                           className="w-full justify-start"
                           onClick={() => handleCategoryChange(category)}
                         >
@@ -238,7 +240,9 @@ export default function BlogPage() {
                     {tags.map((tag) => (
                       <Badge
                         key={tag}
-                        variant={selectedTags.includes(tag) ? "default" : "outline"}
+                        variant={
+                          selectedTags.includes(tag) ? "default" : "outline"
+                        }
                         className="cursor-pointer hover:bg-primary/80"
                         onClick={() => handleTagToggle(tag)}
                       >
@@ -270,7 +274,7 @@ export default function BlogPage() {
           >
             {/* 文章列表 */}
             {currentPosts.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+              <div className="grid grid-cols-1  gap-6 mb-8">
                 {currentPosts.map((post, index) => (
                   <motion.div
                     key={post.id}
@@ -288,9 +292,7 @@ export default function BlogPage() {
                           </Badge>
                         </div>
                         <CardTitle className="group-hover:text-blue-600 transition-colors">
-                          <Link href={`/blog/${post.slug}`}>
-                            {post.title}
-                          </Link>
+                          <Link href={`/blog/${post.slug}`}>{post.title}</Link>
                         </CardTitle>
                         <CardDescription className="line-clamp-3">
                           {post.excerpt}
@@ -300,7 +302,11 @@ export default function BlogPage() {
                         <div className="flex items-center justify-between">
                           <div className="flex flex-wrap gap-1">
                             {post.tags.slice(0, 3).map((tag) => (
-                              <Badge key={tag} variant="secondary" className="text-xs">
+                              <Badge
+                                key={tag}
+                                variant="secondary"
+                                className="text-xs"
+                              >
                                 {tag}
                               </Badge>
                             ))}
@@ -337,19 +343,22 @@ export default function BlogPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                  onClick={() =>
+                    setCurrentPage((prev) => Math.max(1, prev - 1))
+                  }
                   disabled={currentPage === 1}
                 >
                   <ChevronLeft className="h-4 w-4" />
                   上一页
                 </Button>
-                
+
                 <div className="flex items-center gap-1">
                   {Array.from({ length: totalPages }, (_, i) => i + 1)
-                    .filter(page => 
-                      page === 1 || 
-                      page === totalPages || 
-                      Math.abs(page - currentPage) <= 1
+                    .filter(
+                      (page) =>
+                        page === 1 ||
+                        page === totalPages ||
+                        Math.abs(page - currentPage) <= 1
                     )
                     .map((page, index, array) => (
                       <div key={page} className="flex items-center">
@@ -364,14 +373,15 @@ export default function BlogPage() {
                           {page}
                         </Button>
                       </div>
-                    ))
-                  }
+                    ))}
                 </div>
 
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                  onClick={() =>
+                    setCurrentPage((prev) => Math.min(totalPages, prev + 1))
+                  }
                   disabled={currentPage === totalPages}
                 >
                   下一页

@@ -3,6 +3,7 @@
 import { MDXRemote, MDXRemoteSerializeResult } from 'next-mdx-remote';
 import { serialize } from 'next-mdx-remote/serialize';
 import { useEffect, useState } from 'react';
+import Twemoji from '@/components/ui/Twemoji';
 
 interface MDXContentProps {
   content: string;
@@ -57,6 +58,7 @@ const components = {
   em: (props: any) => (
     <em className="italic" {...props} />
   ),
+  Twemoji,
 };
 
 export default function MDXContent({ content }: MDXContentProps) {
