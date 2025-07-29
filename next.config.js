@@ -15,9 +15,6 @@ const nextConfig = {
   images: {
     domains: ['localhost', 'your-cdn-domain.com'],
   },
-  env: {
-    GRAPHQL_ENDPOINT: process.env.GRAPHQL_ENDPOINT || 'http://localhost:4000/graphql',
-  },
 }
 
 module.exports = withMDX(nextConfig)
