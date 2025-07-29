@@ -119,3 +119,18 @@
 .mdx-content pre code {
   @apply bg-transparent p-0;
 }
+
+.mdx-content hr {
+  @apply my-6 border-border;
+}
+
+/* Override prose hr styles */
+.prose hr {
+  margin-top: 1.5rem !important;
+  margin-bottom: 1.5rem !important;
+}
+
+.prose-lg hr {
+  margin-top: 1.5rem !important;
+  margin-bottom: 1.5rem !important;
+}

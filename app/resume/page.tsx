@@ -4,12 +4,7 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import ReactMarkdown from "react-markdown";
 import remarkBreaks from "remark-breaks";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
   User,
@@ -26,7 +21,101 @@ import {
   Building,
   Award,
   Languages,
+  Eye,
+  EyeOff,
+  Copy,
+  Check,
 } from "lucide-react";
+
+// Base64 编码/解码组件
+interface ProtectedTextProps {
+  text: string;
+  className?: string;
+  href?: string;
+}
+
+function ProtectedText({ text, className, href }: ProtectedTextProps) {
+  const [isVisible, setIsVisible] = useState(false);
+  const [decodedText, setDecodedText] = useState("");
+  const [copied, setCopied] = useState(false);
+
+  // Base64 编码文本
+  const encodedText = btoa(encodeURIComponent(text));
+
+  useEffect(() => {
+    if (isVisible && !decodedText) {
+      try {
+        const decoded = decodeURIComponent(atob(encodedText));
+        setDecodedText(decoded);
+      } catch (error) {
+        console.error("解码失败:", error);
+        setDecodedText(text);
+      }
+    }
+  }, [isVisible, encodedText, text, decodedText]);
+
+  const displayText = isVisible ? decodedText : "***";
+
+  const handleCopy = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    try {
+      await navigator.clipboard.writeText(decodedText || text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (error) {
+      console.error("复制失败:", error);
+    }
+  };
+
+  const toggleVisibility = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsVisible(!isVisible);
+  };
+
+  const content = (
+    <div className="flex items-center gap-2">
+      {href ? (
+        <a
+          href={isVisible ? href : "#"}
+          className={className}
+          onClick={isVisible ? undefined : (e) => e.preventDefault()}
+        >
+          {displayText}
+        </a>
+      ) : (
+        <span className={className}>{displayText}</span>
+      )}
+      <button
+        onClick={toggleVisibility}
+        className="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors"
+        title={isVisible ? "隐藏信息" : "显示信息"}
+      >
+        {isVisible ? (
+          <EyeOff className="h-3 w-3 text-gray-500" />
+        ) : (
+          <Eye className="h-3 w-3 text-gray-500" />
+        )}
+      </button>
+      {isVisible && (
+        <button
+          onClick={handleCopy}
+          className="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors"
+          title="复制信息"
+        >
+          {copied ? (
+            <Check className="h-3 w-3 text-green-500" />
+          ) : (
+            <Copy className="h-3 w-3 text-gray-500" />
+          )}
+        </button>
+      )}
+    </div>
+  );
+
+  return content;
+}
 
 interface Resume {
   id: string;
@@ -148,7 +237,14 @@ export default function ResumePage() {
                     {/* 基本信息 */}
                     <div className="flex-1 text-center md:text-left">
                       <h1 className="text-3xl md:text-4xl font-bold text-slate-900 dark:text-white mb-2">
-                        {personalInfo.name || "姓名"}
+                        {personalInfo.name ? (
+                          <ProtectedText
+                            text={personalInfo.name}
+                            className=""
+                          />
+                        ) : (
+                          "姓名"
+                        )}
                       </h1>
                       <p className="text-xl text-blue-600 dark:text-blue-400 mb-4">
                         {personalInfo.title || "职位"}
@@ -158,24 +254,22 @@ export default function ResumePage() {
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm text-slate-600 dark:text-slate-400">
                         {personalInfo.email && (
                           <div className="flex items-center gap-2">
-                            <Mail className="h-4 w-4" />
-                            <a
+                            <Mail className="h-4 w-4 flex-shrink-0" />
+                            <ProtectedText
+                              text={personalInfo.email}
                               href={`mailto:${personalInfo.email}`}
                               className="hover:text-blue-600"
-                            >
-                              {personalInfo.email}
-                            </a>
+                            />
                           </div>
                         )}
                         {personalInfo.phone && (
                           <div className="flex items-center gap-2">
-                            <Phone className="h-4 w-4" />
-                            <a
+                            <Phone className="h-4 w-4 flex-shrink-0" />
+                            <ProtectedText
+                              text={personalInfo.phone}
                               href={`tel:${personalInfo.phone}`}
                               className="hover:text-blue-600"
-                            >
-                              {personalInfo.phone}
-                            </a>
+                            />
                           </div>
                         )}
                         {personalInfo.location && (

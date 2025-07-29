@@ -3,6 +3,9 @@
 import { MDXRemote, MDXRemoteSerializeResult } from 'next-mdx-remote';
 import { serialize } from 'next-mdx-remote/serialize';
 import { useEffect, useState } from 'react';
+import remarkGfm from 'remark-gfm';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import Twemoji from '@/components/ui/Twemoji';
 
 interface MDXContentProps {
@@ -35,15 +38,31 @@ const components = {
     <blockquote className="border-l-4 border-blue-500 pl-4 my-4 italic text-gray-600 dark:text-gray-400" {...props} />
   ),
   code: (props: any) => {
-    if (props.className?.includes('language-')) {
+    const { children, className, ...rest } = props;
+    const match = /language-(\w+)/.exec(className || '');
+    const language = match ? match[1] : '';
+    
+    if (className?.includes('language-')) {
       return (
-        <pre className="bg-gray-100 dark:bg-gray-800 rounded-lg p-4 overflow-x-auto mb-4">
-          <code className="text-sm text-gray-800 dark:text-gray-200" {...props} />
-        </pre>
+        <SyntaxHighlighter
+          style={oneDark as any}
+          language={language}
+          PreTag="div"
+          className="rounded-lg !mt-0 !mb-4"
+          customStyle={{
+            margin: 0,
+            borderRadius: '0.5rem',
+            fontSize: '0.875rem',
+          }}
+        >
+          {String(children).replace(/\n$/, '')}
+        </SyntaxHighlighter>
       );
     }
     return (
-      <code className="bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded text-sm text-gray-800 dark:text-gray-200" {...props} />
+      <code className="bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded text-sm text-gray-800 dark:text-gray-200" {...rest}>
+        {children}
+      </code>
     );
   },
   pre: (props: any) => (
@@ -58,6 +77,27 @@ const components = {
   em: (props: any) => (
     <em className="italic" {...props} />
   ),
+  // 表格组件
+  table: (props: any) => (
+    <div className="overflow-x-auto mb-6">
+      <table className="min-w-full border-collapse border border-gray-300 dark:border-gray-600" {...props} />
+    </div>
+  ),
+  thead: (props: any) => (
+    <thead className="bg-gray-50 dark:bg-gray-800" {...props} />
+  ),
+  tbody: (props: any) => (
+    <tbody {...props} />
+  ),
+  tr: (props: any) => (
+    <tr className="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50" {...props} />
+  ),
+  th: (props: any) => (
+    <th className="px-4 py-3 text-left font-semibold text-gray-900 dark:text-white border-r border-gray-300 dark:border-gray-600 last:border-r-0" {...props} />
+  ),
+  td: (props: any) => (
+    <td className="px-4 py-3 text-gray-700 dark:text-gray-300 border-r border-gray-300 dark:border-gray-600 last:border-r-0" {...props} />
+  ),
   Twemoji,
 };
 
@@ -68,7 +108,11 @@ export default function MDXContent({ content }: MDXContentProps) {
   useEffect(() => {
     const serializeContent = async () => {
       try {
-        const serialized = await serialize(content);
+        const serialized = await serialize(content, {
+          mdxOptions: {
+            remarkPlugins: [remarkGfm],
+          },
+        });
         setMdxSource(serialized);
       } catch (error) {
         console.error('Error serializing MDX content:', error);
