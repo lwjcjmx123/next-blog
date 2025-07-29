@@ -1,0 +1,13 @@
+<svg width="180" height="180" viewBox="0 0 180 180" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- 背景圆形 -->
+  <circle cx="90" cy="90" r="85" fill="#3B82F6" stroke="#1E40AF" stroke-width="10"/>
+  
+  <!-- 字母 H (代表 hailong) -->
+  <path d="M55 55V125M125 55V125M55 90H125" stroke="white" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
+  
+  <!-- 装饰点 -->
+  <circle cx="40" cy="40" r="8" fill="#60A5FA"/>
+  <circle cx="140" cy="40" r="8" fill="#60A5FA"/>
+  <circle cx="40" cy="140" r="8" fill="#60A5FA"/>
+  <circle cx="140" cy="140" r="8" fill="#60A5FA"/>
+</svg>

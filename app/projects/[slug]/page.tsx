@@ -19,21 +19,28 @@ import {
 import { Project } from '@/lib/data'
 
 interface ProjectPageProps {
-  params: {
+  params: Promise<{
     slug: string
-  }
+  }>
 }
 
 export default function ProjectPage({ params }: ProjectPageProps) {
+  const [slug, setSlug] = useState<string>('')
   const [project, setProject] = useState<Project | null>(null)
   const [relatedProjects, setRelatedProjects] = useState<Project[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
 
   useEffect(() => {
+    params.then(p => setSlug(p.slug));
+  }, [params]);
+
+  useEffect(() => {
+    if (!slug) return;
+    
     const fetchProject = async () => {
       try {
-        const response = await fetch(`/api/projects/${params.slug}`)
+        const response = await fetch(`/api/projects/${slug}`)
         if (response.ok) {
           const projectData = await response.json()
           setProject(projectData)
@@ -62,7 +69,7 @@ export default function ProjectPage({ params }: ProjectPageProps) {
     }
 
     fetchProject()
-  }, [params.slug])
+  }, [slug])
 
   if (loading) {
     return (

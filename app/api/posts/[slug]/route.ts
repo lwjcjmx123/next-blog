@@ -1,15 +1,13 @@
 import { NextResponse } from 'next/server';
 import { getPostBySlug } from '@/lib/data';
 
-interface RouteParams {
-  params: {
-    slug: string;
-  }
-}
-
-export async function GET(request: Request, { params }: RouteParams) {
+export async function GET(
+  request: Request,
+  { params }: { params: Promise<{ slug: string }> }
+) {
+  const { slug } = await params;
   try {
-    const post = await getPostBySlug(params.slug);
+    const post = await getPostBySlug(slug);
     
     if (!post) {
       return NextResponse.json(

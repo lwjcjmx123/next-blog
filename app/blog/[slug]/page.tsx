@@ -22,12 +22,17 @@ import { Post } from '@/lib/data';
 import MDXContent from '@/components/mdx-content';
 
 interface BlogPostPageProps {
-  params: {
+  params: Promise<{
     slug: string
-  }
+  }>
 }
 
 export default function BlogPostPage({ params }: BlogPostPageProps) {
+  const [slug, setSlug] = useState<string>('');
+  
+  useEffect(() => {
+    params.then(p => setSlug(p.slug));
+  }, [params]);
   const { toast } = useToast();
   const [post, setPost] = useState<Post | null>(null);
   const [relatedPosts, setRelatedPosts] = useState<Post[]>([]);
@@ -35,9 +40,11 @@ export default function BlogPostPage({ params }: BlogPostPageProps) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!slug) return;
+    
     const fetchPost = async () => {
       try {
-        const response = await fetch(`/api/posts/${params.slug}`);
+        const response = await fetch(`/api/posts/${slug}`);
         if (!response.ok) {
           throw new Error('Post not found');
         }
@@ -50,7 +57,7 @@ export default function BlogPostPage({ params }: BlogPostPageProps) {
           if (relatedResponse.ok) {
             const relatedData = await relatedResponse.json();
             // 过滤掉当前文章
-            const filtered = relatedData.filter((p: Post) => p.slug !== params.slug).slice(0, 3);
+            const filtered = relatedData.filter((p: Post) => p.slug !== slug).slice(0, 3);
             setRelatedPosts(filtered);
           }
         }
@@ -62,7 +69,7 @@ export default function BlogPostPage({ params }: BlogPostPageProps) {
     };
 
     fetchPost();
-  }, [params.slug]);
+  }, [slug]);
 
   const shareUrl = typeof window !== 'undefined' ? window.location.href : '';
   const shareTitle = post?.title || '';

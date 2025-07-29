@@ -90,3 +90,8 @@ server/
 # Cache
 .cache/
 .parcel-cache/
+/.open-next
+
+# wrangler files
+.wrangler
+.dev.vars*

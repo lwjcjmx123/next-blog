@@ -9,30 +9,39 @@ const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: {
-    default: "个人博客 - 全栈开发者",
-    template: "%s | 个人博客",
+    default: "hailong 的个人网站 - 全栈开发者",
+    template: "%s | hailong 的个人网站",
   },
   metadataBase: new URL("https://yourdomain.com"), // 替换为你的实际域名
 
   description:
-    "一个基于Next.js的个人展示网站，包含博客系统、项目展示和在线简历",
-  keywords: ["Next.js", "React", "TypeScript", "GraphQL", "Blog", "Portfolio"],
-  authors: [{ name: "Your Name" }],
-  creator: "Your Name",
+    "hailong 的个人展示网站，基于Next.js构建，包含博客系统、项目展示和在线简历",
+  keywords: ["Next.js", "React", "TypeScript", "GraphQL", "Blog", "Portfolio", "hailong"],
+  authors: [{ name: "hailong" }],
+  creator: "hailong",
+  icons: {
+    icon: [
+      { url: '/icon.svg', type: 'image/svg+xml' },
+      { url: '/favicon.ico', sizes: '32x32' }
+    ],
+    apple: [
+      { url: '/apple-icon.svg', type: 'image/svg+xml' }
+    ],
+  },
   openGraph: {
     type: "website",
     locale: "zh_CN",
     url: "https://yourdomain.com",
-    title: "个人博客 - 全栈开发者",
+    title: "hailong 的个人网站 - 全栈开发者",
     description:
-      "一个基于Next.js的个人展示网站，包含博客系统、项目展示和在线简历",
-    siteName: "个人博客",
+      "hailong 的个人展示网站，基于Next.js构建，包含博客系统、项目展示和在线简历",
+    siteName: "hailong 的个人网站",
   },
   twitter: {
     card: "summary_large_image",
-    title: "个人博客 - 全栈开发者",
+    title: "hailong 的个人网站 - 全栈开发者",
     description:
-      "一个基于Next.js的个人展示网站，包含博客系统、项目展示和在线简历",
+      "hailong 的个人展示网站，基于Next.js构建，包含博客系统、项目展示和在线简历",
   },
   robots: {
     index: true,

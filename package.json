@@ -2,6 +2,18 @@
   "name": "next-blog",
   "version": "0.1.0",
   "private": true,
+  "cloudflare": {
+    "label": "Next.js Blog ",
+    "products": [
+      "Workers"
+    ],
+    "categories": [],
+    "icon_urls": [
+      "https://imagedelivery.net/wSMYJvS3Xw-n339CbDyDIA/5ca0ca32-e897-4699-d4c1-6b680512f000/public"
+    ],
+    "preview_image_url": "https://imagedelivery.net/wSMYJvS3Xw-n339CbDyDIA/e42eec61-db86-49c8-7b29-c3ed4783e400/public",
+    "publish": true
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -13,7 +25,10 @@
     "db:studio": "prisma studio",
     "server:dev": "cd server && npm run dev",
     "server:build": "cd server && npm run build",
-    "server:start": "cd server && npm start"
+    "server:start": "cd server && npm start",
+    "cf:build": "npx opennextjs-cloudflare build",
+    "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
+    "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy"
   },
   "dependencies": {
     "@apollo/client": "^3.8.8",
@@ -76,6 +91,7 @@
     "@types/react-dom": "^18",
     "@types/react-syntax-highlighter": "^15.5.13",
     "autoprefixer": "^10.0.1",
+    "esbuild": "^0.25.8",
     "eslint": "^8",
     "eslint-config-next": "14.0.4",
     "postcss": "^8",

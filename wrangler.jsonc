@@ -1,0 +1,27 @@
+/**
+ * For more details on how to configure Wrangler, refer to:
+ * https://developers.cloudflare.com/workers/wrangler/configuration/
+ */
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "next-blog",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2024-09-23",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": {
+    "binding": "ASSETS",
+    "directory": ".open-next/assets"
+  },
+  "observability": {
+    "enabled": true
+  },
+  "upload_source_maps": true,
+  "env": {
+    "production": {
+      "name": "next-blog-production"
+    },
+    "staging": {
+      "name": "next-blog-staging"
+    }
+  }
+}

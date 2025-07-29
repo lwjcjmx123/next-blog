@@ -1,15 +1,13 @@
 import { NextResponse } from 'next/server';
 import { getProjectBySlug } from '@/lib/data';
 
-interface RouteParams {
-  params: {
-    slug: string;
-  }
-}
-
-export async function GET(request: Request, { params }: RouteParams) {
+export async function GET(
+  request: Request,
+  { params }: { params: Promise<{ slug: string }> }
+) {
+  const { slug } = await params;
   try {
-    const project = await getProjectBySlug(params.slug);
+    const project = await getProjectBySlug(slug);
     
     if (!project) {
       return NextResponse.json(
