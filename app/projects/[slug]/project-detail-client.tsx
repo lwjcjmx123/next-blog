@@ -6,6 +6,7 @@ import { motion } from 'framer-motion';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import MDXContent from '@/components/mdx-content';
 import { 
   ArrowLeft, 
   Github, 
@@ -62,7 +63,7 @@ export default function ProjectDetailClient({ project, relatedProjects }: Projec
                 <img
                   src={project.imageUrl}
                   alt={project.title}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-contain bg-white"
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-white">
@@ -175,12 +176,7 @@ export default function ProjectDetailClient({ project, relatedProjects }: Projec
                   transition={{ delay: 0.5 }}
                   className="prose prose-slate dark:prose-invert max-w-none mb-8"
                 >
-                  <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">
-                    项目详情
-                  </h3>
-                  <div className="text-slate-600 dark:text-slate-300 leading-relaxed whitespace-pre-wrap">
-                    {project.content}
-                  </div>
+                  <MDXContent content={project.content} />
                 </motion.div>
               )}
             </div>

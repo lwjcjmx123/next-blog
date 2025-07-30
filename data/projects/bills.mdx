@@ -1,0 +1,399 @@
+---
+title: "语音记账应用"
+slug: "bills"
+description: "一款基于 Flutter 开发的智能语音记账应用，支持自然语言输入和 AI 智能解析，与 Notion 数据库无缝集成，让记账变得更加简单高效。"
+technologies:
+  [
+    "Flutter",
+    "Dart",
+    "AI语义解析",
+    "Notion API",
+    "Provider状态管理",
+    "SharedPreferences",
+    "HTTP请求",
+    "图表可视化",
+  ]
+githubUrl: "https://github.com/lwjcjmx123/bills"
+liveUrl: "https://bills-demo.example.com"
+imageUrl: "/images/projects/bills-preview.svg"
+featured: true
+published: true
+createdAt: "2024-03-01T00:00:00Z"
+---
+
+# 语音记账应用
+
+语音记账应用是一款革命性的个人财务管理工具，通过 AI 技术和自然语言处理，让记账变得前所未有的简单。用户只需说出或输入一句话，应用就能智能解析并自动记录消费信息。
+
+## 🎤 核心特色
+
+### 智能语音识别
+
+应用支持多种输入方式：
+
+- **语音输入**：直接说话记录消费
+- **文字输入**：自然语言文本描述
+- **快速记录**：一句话完成记账
+
+示例输入：
+
+```
+"今天买水果花了30块"
+"午餐麦当劳25元"
+"打车回家15块钱"
+"给妈妈买药200元"
+```
+
+### 🤖 AI 智能解析
+
+应用集成了先进的 AI 语义解析引擎，能够从自然语言中准确提取：
+
+- **📅 日期信息**：自动识别"今天"、"昨天"、具体日期
+- **💰 金额数据**：智能提取消费金额
+- **🏷️ 消费类型**：自动分类（餐饮、日用、交通、医疗等）
+- **👤 消费人员**：识别消费主体
+- **🛍️ 消费物品**：提取具体商品或服务
+
+### 📊 数据可视化
+
+提供丰富的图表展示：
+
+- **月度支出趋势**：折线图显示消费变化
+- **分类占比分析**：饼图展示各类支出比例
+- **消费热力图**：日历视图显示消费密度
+- **预算对比**：实际支出与预算的对比分析
+
+## 🛠️ 技术实现
+
+### Flutter 跨平台架构
+
+```dart
+// 主应用结构
+class MyApp extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: '语音记账',
+      theme: ThemeData(
+        primaryColor: Color(0xFF4E79A7),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: Color(0xFF4E79A7),
+        ),
+      ),
+      home: HomeScreen(),
+    );
+  }
+}
+```
+
+### AI 语义解析引擎
+
+应用集成了基于深度学习的语义解析模型：
+
+```dart
+class AIParser {
+  Future<Map<String, dynamic>> parseTextWithAI(String text) async {
+    final prompt = '''
+    解析文本：$text
+    提取以下字段：
+    1. 日期（date）
+    2. 金额（amount）
+    3. 消费类型（category）
+    4. 消费人（consumer）
+    5. 消费物品（item）
+    ''';
+
+    // 调用 AI 模型进行解析
+    final response = await http.post(
+      Uri.parse('$baseUrl/v1/chat/completions'),
+      headers: {
+        'Authorization': 'Bearer $apiKey',
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({
+        "model": "Qwen/Qwen3-8B",
+        'messages': [{
+          'role': 'system',
+          'content': '你是一个语义解析助手，负责将自然语言文本解析为结构化的 JSON 数据。',
+        }, {
+          'role': 'user',
+          'content': prompt,
+        }],
+      }),
+    );
+
+    return jsonDecode(response.body);
+  }
+}
+```
+
+### Notion 数据库集成
+
+与 Notion 深度集成，实现云端数据同步：
+
+```dart
+class NotionService {
+  Future<void> saveRecord({
+    required String apiKey,
+    required String databaseId,
+    required String date,
+    required num amount,
+    required String category,
+    required String consumer,
+    required String item,
+    String? remark,
+  }) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/notion/create-record'),
+      headers: {
+        'Content-Type': 'application/json',
+        'notion-api-key': apiKey,
+        'notion-database-id': databaseId,
+      },
+      body: jsonEncode({
+        'date': date,
+        'amount': amount,
+        'category': category,
+        'consumer': consumer,
+        'item': item,
+        'remark': remark,
+      }),
+    );
+  }
+}
+```
+
+## 📱 用户界面设计
+
+### Material Design 3.0
+
+应用采用最新的 Material Design 设计规范：
+
+- **现代化配色**：蓝色主题配色方案
+- **圆角设计**：12px 圆角提升视觉体验
+- **卡片布局**：信息层次清晰
+- **动画效果**：流畅的页面转场
+
+### 响应式布局
+
+```dart
+// 自适应布局示例
+Widget _buildResponsiveLayout() {
+  return LayoutBuilder(
+    builder: (context, constraints) {
+      if (constraints.maxWidth > 600) {
+        return _buildTabletLayout();
+      } else {
+        return _buildMobileLayout();
+      }
+    },
+  );
+}
+```
+
+## 🔧 核心功能模块
+
+### 1. 智能记录模块
+
+```dart
+class AddRecordScreen extends StatefulWidget {
+  @override
+  _AddRecordScreenState createState() => _AddRecordScreenState();
+}
+
+class _AddRecordScreenState extends State<AddRecordScreen> {
+  final TextEditingController _textInputController = TextEditingController();
+  bool _isParsingText = false;
+
+  Future<void> _parseAndFillForm() async {
+    setState(() => _isParsingText = true);
+
+    try {
+      final result = await _aiParser.parseTextWithAI(
+        _textInputController.text
+      );
+
+      // 自动填充表单
+      _fillFormWithParsedData(result);
+    } catch (e) {
+      _showErrorSnackBar('解析失败：$e');
+    } finally {
+      setState(() => _isParsingText = false);
+    }
+  }
+}
+```
+
+### 2. 数据分析模块
+
+```dart
+class AnalysisScreen extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Column(
+        children: [
+          _buildSummaryCards(),
+          _buildCategoryChart(),
+          _buildTrendChart(),
+          _buildCalendarHeatmap(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCategoryChart() {
+    return PieChart(
+      PieChartData(
+        sections: _generatePieChartSections(),
+        centerSpaceRadius: 40,
+        sectionsSpace: 2,
+      ),
+    );
+  }
+}
+```
+
+### 3. 日历视图模块
+
+```dart
+class CalendarScreen extends StatefulWidget {
+  @override
+  _CalendarScreenState createState() => _CalendarScreenState();
+}
+
+class _CalendarScreenState extends State<CalendarScreen> {
+  DateTime _selectedDate = DateTime.now();
+  Map<DateTime, List<Record>> _recordsByDate = {};
+
+  @override
+  Widget build(BuildContext context) {
+    return TableCalendar<Record>(
+      firstDay: DateTime.utc(2020, 1, 1),
+      lastDay: DateTime.utc(2030, 12, 31),
+      focusedDay: _selectedDate,
+      eventLoader: (day) => _recordsByDate[day] ?? [],
+      calendarBuilders: CalendarBuilders(
+        markerBuilder: (context, date, records) {
+          return _buildDayMarker(records);
+        },
+      ),
+    );
+  }
+}
+```
+
+## 🚀 技术亮点
+
+### 1. 离线优先设计
+
+- **本地缓存**：使用 SharedPreferences 存储用户设置
+- **离线记录**：支持无网络环境下的记账
+- **数据同步**：网络恢复后自动同步到 Notion
+
+### 2. 智能分类算法
+
+```dart
+class CategoryClassifier {
+  static const Map<String, List<String>> _categoryKeywords = {
+    '餐饮': ['吃', '喝', '餐厅', '外卖', '咖啡', '奶茶'],
+    '交通': ['打车', '地铁', '公交', '油费', '停车'],
+    '购物': ['买', '购', '商场', '超市', '淘宝', '京东'],
+    '医疗': ['医院', '药', '体检', '看病', '治疗'],
+  };
+
+  static String classifyByKeywords(String text) {
+    for (final category in _categoryKeywords.keys) {
+      final keywords = _categoryKeywords[category]!;
+      if (keywords.any((keyword) => text.contains(keyword))) {
+        return category;
+      }
+    }
+    return '其他';
+  }
+}
+```
+
+### 3. 数据安全保护
+
+- **API 密钥加密**：本地存储的 API 密钥经过加密处理
+- **数据校验**：严格的数据格式验证
+- **错误处理**：完善的异常捕获和用户提示
+
+## 📈 性能优化
+
+### 1. 内存管理
+
+```dart
+class RecordCache {
+  static final Map<String, List<Record>> _cache = {};
+  static const int _maxCacheSize = 1000;
+
+  static void addToCache(String key, List<Record> records) {
+    if (_cache.length >= _maxCacheSize) {
+      _cache.remove(_cache.keys.first);
+    }
+    _cache[key] = records;
+  }
+}
+```
+
+### 2. 网络请求优化
+
+- **请求去重**：避免重复的 API 调用
+- **超时处理**：合理的网络超时设置
+- **重试机制**：失败请求的自动重试
+
+### 3. UI 渲染优化
+
+- **懒加载**：大列表的分页加载
+- **图片缓存**：网络图片的本地缓存
+- **动画优化**：60fps 流畅动画
+
+## 🎯 使用场景
+
+### 个人用户
+
+- **日常记账**：快速记录每日消费
+- **预算管理**：设置和追踪月度预算
+- **消费分析**：了解个人消费习惯
+- **财务规划**：基于数据的理财决策
+
+### 家庭用户
+
+- **家庭账本**：多人共享的家庭财务
+- **子女教育**：培养孩子的理财意识
+- **开支透明**：家庭消费的透明化管理
+
+### 小微企业
+
+- **差旅报销**：员工出差费用记录
+- **日常开支**：办公用品、餐饮等支出
+- **财务报表**：简单的财务数据统计
+
+## 🔮 未来规划
+
+### 短期目标（3-6 个月）
+
+- **语音识别优化**：提升语音识别准确率
+- **更多图表类型**：增加柱状图、雷达图等
+- **数据导出**：支持 Excel、PDF 格式导出
+- **预算提醒**：智能的预算超支提醒
+
+### 中期目标（6-12 个月）
+
+- **多语言支持**：英语、日语等国际化
+- **团队协作**：支持多人共享账本
+- **智能建议**：基于 AI 的消费建议
+- **银行卡集成**：自动导入银行流水
+
+### 长期愿景（1-2 年）
+
+- **投资管理**：股票、基金等投资记录
+- **税务助手**：个税计算和申报辅助
+- **财务顾问**：个性化的理财建议
+- **生态集成**：与更多金融服务集成
+
+---
+
+语音记账应用代表了移动应用开发的新趋势，通过 AI 技术降低用户使用门槛，通过云端集成提升数据价值。这不仅是一个记账工具，更是个人财务管理的智能助手。

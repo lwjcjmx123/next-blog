@@ -1,97 +1,125 @@
-'use client'
+"use client";
 
-import { useState, useEffect } from 'react'
-import Link from 'next/link'
-import { motion } from 'framer-motion'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { 
-  Search, 
-  Github, 
-  ExternalLink, 
-  Star, 
+import { useState, useEffect } from "react";
+import Link from "next/link";
+import { motion } from "framer-motion";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Search,
+  Github,
+  ExternalLink,
+  Star,
   Filter,
   ChevronLeft,
-  ChevronRight
-} from 'lucide-react'
-import { Project } from '@/lib/data'
+  ChevronRight,
+} from "lucide-react";
+import { Project } from "@/lib/data";
 
-const PROJECTS_PER_PAGE = 6
+const PROJECTS_PER_PAGE = 6;
 
 // 预定义的技术栈选项
 const TECH_OPTIONS = [
-  'React', 'Next.js', 'Vue.js', 'Angular', 'TypeScript', 'JavaScript',
-  'Node.js', 'Express', 'Nest.js', 'Python', 'Django', 'FastAPI',
-  'MySQL', 'PostgreSQL', 'MongoDB', 'Redis', 'GraphQL', 'REST API',
-  'Docker', 'AWS', 'Vercel', 'Tailwind CSS', 'Sass', 'Styled Components'
-]
+  "React",
+  "Next.js",
+  "Vue.js",
+  "Angular",
+  "TypeScript",
+  "JavaScript",
+  "Node.js",
+  "Express",
+  "Nest.js",
+  "Python",
+  "Django",
+  "FastAPI",
+  "MySQL",
+  "PostgreSQL",
+  "MongoDB",
+  "Redis",
+  "GraphQL",
+  "REST API",
+  "Docker",
+  "AWS",
+  "Vercel",
+  "Tailwind CSS",
+  "Sass",
+  "Styled Components",
+];
 
 interface ProjectsClientProps {
   initialProjects: Project[];
 }
 
-export default function ProjectsClient({ initialProjects }: ProjectsClientProps) {
-  const [projects] = useState<Project[]>(initialProjects)
-  const [filteredProjects, setFilteredProjects] = useState<Project[]>(initialProjects)
-  const [searchTerm, setSearchTerm] = useState('')
-  const [selectedTechs, setSelectedTechs] = useState<string[]>([])
-  const [showFeaturedOnly, setShowFeaturedOnly] = useState(false)
-  const [currentPage, setCurrentPage] = useState(1)
-  const [showTechFilter, setShowTechFilter] = useState(false)
+export default function ProjectsClient({
+  initialProjects,
+}: ProjectsClientProps) {
+  const [projects] = useState<Project[]>(initialProjects);
+  const [filteredProjects, setFilteredProjects] =
+    useState<Project[]>(initialProjects);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedTechs, setSelectedTechs] = useState<string[]>([]);
+  const [showFeaturedOnly, setShowFeaturedOnly] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [showTechFilter, setShowTechFilter] = useState(false);
 
   // 筛选项目
   useEffect(() => {
-    let filtered = projects
+    let filtered = projects;
 
     // 搜索筛选
     if (searchTerm) {
-      filtered = filtered.filter(project => 
-        project.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        project.description.toLowerCase().includes(searchTerm.toLowerCase())
-      )
+      filtered = filtered.filter(
+        (project) =>
+          project.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          project.description.toLowerCase().includes(searchTerm.toLowerCase())
+      );
     }
 
     // 技术栈筛选
     if (selectedTechs.length > 0) {
-      filtered = filtered.filter(project => 
-        selectedTechs.some(tech => project.technologies.includes(tech))
-      )
+      filtered = filtered.filter((project) =>
+        selectedTechs.some((tech) => project.technologies.includes(tech))
+      );
     }
 
     // 精选筛选
     if (showFeaturedOnly) {
-      filtered = filtered.filter(project => project.featured)
+      filtered = filtered.filter((project) => project.featured);
     }
 
-    setFilteredProjects(filtered)
-    setCurrentPage(1)
-  }, [projects, searchTerm, selectedTechs, showFeaturedOnly])
+    setFilteredProjects(filtered);
+    setCurrentPage(1);
+  }, [projects, searchTerm, selectedTechs, showFeaturedOnly]);
 
-  const totalProjects = filteredProjects.length
-  const totalPages = Math.ceil(totalProjects / PROJECTS_PER_PAGE)
-  const startIndex = (currentPage - 1) * PROJECTS_PER_PAGE
-  const endIndex = startIndex + PROJECTS_PER_PAGE
-  const currentProjects = filteredProjects.slice(startIndex, endIndex)
+  const totalProjects = filteredProjects.length;
+  const totalPages = Math.ceil(totalProjects / PROJECTS_PER_PAGE);
+  const startIndex = (currentPage - 1) * PROJECTS_PER_PAGE;
+  const endIndex = startIndex + PROJECTS_PER_PAGE;
+  const currentProjects = filteredProjects.slice(startIndex, endIndex);
 
   const handleTechToggle = (tech: string) => {
-    setSelectedTechs(prev => 
-      prev.includes(tech) 
-        ? prev.filter(t => t !== tech)
-        : [...prev, tech]
-    )
-  }
+    setSelectedTechs((prev) =>
+      prev.includes(tech) ? prev.filter((t) => t !== tech) : [...prev, tech]
+    );
+  };
 
   const handleSearch = (term: string) => {
-    setSearchTerm(term)
-  }
+    setSearchTerm(term);
+  };
 
   const clearFilters = () => {
-    setSearchTerm('')
-    setSelectedTechs([])
-    setShowFeaturedOnly(false)
-  }
+    setSearchTerm("");
+    setSelectedTechs([]);
+    setShowFeaturedOnly(false);
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
@@ -144,7 +172,11 @@ export default function ProjectsClient({ initialProjects }: ProjectsClientProps)
                     onClick={() => setShowFeaturedOnly(!showFeaturedOnly)}
                     className="flex items-center gap-2"
                   >
-                    <Star className={`h-4 w-4 ${showFeaturedOnly ? 'fill-current' : ''}`} />
+                    <Star
+                      className={`h-4 w-4 ${
+                        showFeaturedOnly ? "fill-current" : ""
+                      }`}
+                    />
                     精选项目
                   </Button>
                   <Button
@@ -160,7 +192,7 @@ export default function ProjectsClient({ initialProjects }: ProjectsClientProps)
               {showTechFilter && (
                 <motion.div
                   initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
+                  animate={{ opacity: 1, height: "auto" }}
                   exit={{ opacity: 0, height: 0 }}
                   className="border-t pt-4"
                 >
@@ -169,7 +201,9 @@ export default function ProjectsClient({ initialProjects }: ProjectsClientProps)
                     {TECH_OPTIONS.map((tech) => (
                       <Badge
                         key={tech}
-                        variant={selectedTechs.includes(tech) ? "default" : "secondary"}
+                        variant={
+                          selectedTechs.includes(tech) ? "default" : "secondary"
+                        }
                         className="cursor-pointer hover:scale-105 transition-transform"
                         onClick={() => handleTechToggle(tech)}
                       >
@@ -183,7 +217,9 @@ export default function ProjectsClient({ initialProjects }: ProjectsClientProps)
               {/* 已选择的筛选条件 */}
               {(searchTerm || selectedTechs.length > 0 || showFeaturedOnly) && (
                 <div className="flex flex-wrap items-center gap-2 pt-2 border-t">
-                  <span className="text-sm text-slate-600 dark:text-slate-400">当前筛选：</span>
+                  <span className="text-sm text-slate-600 dark:text-slate-400">
+                    当前筛选：
+                  </span>
                   {searchTerm && (
                     <Badge variant="outline">搜索: {searchTerm}</Badge>
                   )}
@@ -230,10 +266,10 @@ export default function ProjectsClient({ initialProjects }: ProjectsClientProps)
                       <img
                         src={project.imageUrl}
                         alt={project.title}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300 bg-white"
                       />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center text-white text-6xl font-bold">
+                      <div className="w-full h-full flex items-center justify-center text-white text-6xl font-bold cursor-pointer">
                         {project.title.charAt(0)}
                       </div>
                     )}
@@ -248,9 +284,11 @@ export default function ProjectsClient({ initialProjects }: ProjectsClientProps)
                   </div>
 
                   <CardHeader>
-                    <CardTitle className="group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                      {project.title}
-                    </CardTitle>
+                    <Link href={`/projects/${project.slug}`}>
+                      <CardTitle className="group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors cursor-pointer">
+                        {project.title}
+                      </CardTitle>
+                    </Link>
                     <CardDescription className="line-clamp-2">
                       {project.description}
                     </CardDescription>
@@ -260,7 +298,11 @@ export default function ProjectsClient({ initialProjects }: ProjectsClientProps)
                     {/* 技术栈 */}
                     <div className="flex flex-wrap gap-1 mb-4">
                       {project.technologies.slice(0, 4).map((tech) => (
-                        <Badge key={tech} variant="secondary" className="text-xs">
+                        <Badge
+                          key={tech}
+                          variant="secondary"
+                          className="text-xs"
+                        >
                           {tech}
                         </Badge>
                       ))}
@@ -278,7 +320,9 @@ export default function ProjectsClient({ initialProjects }: ProjectsClientProps)
                           variant="outline"
                           size="sm"
                           className="flex-1"
-                          onClick={() => window.open(project.githubUrl, '_blank')}
+                          onClick={() =>
+                            window.open(project.githubUrl, "_blank")
+                          }
                         >
                           <Github className="h-4 w-4 mr-2" />
                           源码
@@ -288,7 +332,7 @@ export default function ProjectsClient({ initialProjects }: ProjectsClientProps)
                         <Button
                           size="sm"
                           className="flex-1"
-                          onClick={() => window.open(project.liveUrl, '_blank')}
+                          onClick={() => window.open(project.liveUrl, "_blank")}
                         >
                           <ExternalLink className="h-4 w-4 mr-2" />
                           预览
@@ -315,8 +359,8 @@ export default function ProjectsClient({ initialProjects }: ProjectsClientProps)
             <h3 className="text-xl font-semibold mb-2">暂无项目</h3>
             <p className="text-slate-600 dark:text-slate-400">
               {searchTerm || selectedTechs.length > 0 || showFeaturedOnly
-                ? '没有找到符合条件的项目，请尝试调整筛选条件'
-                : '还没有添加任何项目'}
+                ? "没有找到符合条件的项目，请尝试调整筛选条件"
+                : "还没有添加任何项目"}
             </p>
           </motion.div>
         )}
@@ -331,16 +375,16 @@ export default function ProjectsClient({ initialProjects }: ProjectsClientProps)
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
               disabled={currentPage === 1}
             >
               <ChevronLeft className="h-4 w-4" />
               上一页
             </Button>
-            
+
             <div className="flex items-center gap-1">
               {[...Array(totalPages)].map((_, i) => {
-                const page = i + 1
+                const page = i + 1;
                 if (
                   page === 1 ||
                   page === totalPages ||
@@ -355,21 +399,27 @@ export default function ProjectsClient({ initialProjects }: ProjectsClientProps)
                     >
                       {page}
                     </Button>
-                  )
+                  );
                 } else if (
                   page === currentPage - 2 ||
                   page === currentPage + 2
                 ) {
-                  return <span key={page} className="px-2">...</span>
+                  return (
+                    <span key={page} className="px-2">
+                      ...
+                    </span>
+                  );
                 }
-                return null
+                return null;
               })}
             </div>
-            
+
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+              onClick={() =>
+                setCurrentPage((prev) => Math.min(totalPages, prev + 1))
+              }
               disabled={currentPage === totalPages}
             >
               下一页
@@ -379,5 +429,5 @@ export default function ProjectsClient({ initialProjects }: ProjectsClientProps)
         )}
       </div>
     </div>
-  )
+  );
 }

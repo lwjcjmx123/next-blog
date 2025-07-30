@@ -16,22 +16,28 @@ export const metadata: Metadata = {
 
   description:
     "hailong 的个人展示网站，基于Next.js构建，包含博客系统、项目展示和在线简历",
-  keywords: ["Next.js", "React", "TypeScript", "GraphQL", "Blog", "Portfolio", "hailong"],
+  keywords: [
+    "Next.js",
+    "React",
+    "TypeScript",
+    "GraphQL",
+    "Blog",
+    "Portfolio",
+    "hailong",
+  ],
   authors: [{ name: "hailong" }],
   creator: "hailong",
   icons: {
     icon: [
-      { url: '/icon.svg', type: 'image/svg+xml' },
-      { url: '/favicon.ico', sizes: '32x32' }
+      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/favicon.ico", sizes: "32x32" },
     ],
-    apple: [
-      { url: '/apple-icon.svg', type: 'image/svg+xml' }
-    ],
+    apple: [{ url: "/apple-icon.svg", type: "image/svg+xml" }],
   },
   openGraph: {
     type: "website",
     locale: "zh_CN",
-    url: "https://yourdomain.com",
+    url: "https://lwjcjmx23.com",
     title: "hailong 的个人网站 - 全栈开发者",
     description:
       "hailong 的个人展示网站，基于Next.js构建，包含博客系统、项目展示和在线简历",

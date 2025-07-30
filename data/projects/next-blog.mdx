@@ -1,0 +1,709 @@
+---
+title: "Next.js 个人博客系统"
+slug: "next-blog"
+description: "基于 Next.js 14 和 MDX 构建的现代化个人博客系统，支持静态生成、响应式设计和 SEO 优化，为开发者提供完整的内容管理解决方案。"
+technologies:
+  [
+    "Next.js 14",
+    "React",
+    "TypeScript",
+    "Tailwind CSS",
+    "MDX",
+    "Framer Motion",
+    "Lucide Icons",
+    "Vercel",
+  ]
+githubUrl: "https://github.com/lwjcjmx123/next-blog"
+liveUrl: "https://lwjcjmx123.com"
+imageUrl: "/images/projects/next-blog-preview.png"
+featured: true
+published: true
+createdAt: "2024-01-15T00:00:00Z"
+---
+
+# Next.js 个人博客系统
+
+这是一个基于 Next.js 14 构建的现代化个人博客系统，采用最新的 Web 技术栈，为开发者和内容创作者提供了一个功能完整、性能优异的博客平台。系统支持 MDX 格式的文章编写、项目展示、在线简历等功能，是展示个人技术能力和分享知识的理想选择。
+
+## 🚀 核心功能
+
+### 📝 博客文章管理
+
+- **MDX 支持**：使用 MDX 格式编写文章，支持在 Markdown 中嵌入 React 组件
+- **语法高亮**：集成 Prism.js，支持多种编程语言的代码高亮
+- **文章分类**：支持按分类和标签组织文章
+- **阅读时间**：自动计算文章阅读时间
+- **响应式阅读**：优化的移动端阅读体验
+
+### 🎨 项目展示
+
+- **项目画廊**：精美的项目展示页面
+- **技术栈标签**：清晰展示项目使用的技术
+- **在线预览**：支持项目在线演示链接
+- **源码链接**：GitHub 仓库直接访问
+- **项目详情**：支持 MDX 格式的详细项目介绍
+
+### 📄 在线简历
+
+- **个人信息**：完整的个人资料展示
+- **工作经历**：详细的职业发展历程
+- **技能展示**：可视化的技能水平展示
+- **教育背景**：学历和认证信息
+- **项目经验**：重点项目经历展示
+
+### ⚡ 性能优化
+
+- **静态生成**：使用 Next.js SSG 实现极速加载
+- **图片优化**：Next.js Image 组件自动优化
+- **代码分割**：按需加载，减少初始包体积
+- **SEO 友好**：完整的 meta 标签和结构化数据
+
+## 🛠️ 技术架构
+
+### 前端框架
+
+```typescript
+// Next.js 14 App Router 配置
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <html lang="zh-CN" suppressHydrationWarning>
+      <body className={inter.className}>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <Navigation />
+          <main className="min-h-screen">{children}</main>
+          <Footer />
+          <Toaster />
+        </ThemeProvider>
+      </body>
+    </html>
+  );
+}
+```
+
+### MDX 内容处理
+
+```typescript
+// MDX 内容组件
+import { MDXRemote } from "next-mdx-remote";
+import { serialize } from "next-mdx-remote/serialize";
+import remarkGfm from "remark-gfm";
+
+const components = {
+  h1: (props: any) => (
+    <h1
+      className="text-4xl font-bold mb-6 text-gray-900 dark:text-white"
+      {...props}
+    />
+  ),
+  h2: (props: any) => (
+    <h2
+      className="text-3xl font-semibold mb-4 mt-8 text-gray-900 dark:text-white"
+      {...props}
+    />
+  ),
+  code: (props: any) => {
+    const { children, className } = props;
+    const match = /language-(\w+)/.exec(className || "");
+    const language = match ? match[1] : "";
+
+    if (className?.includes("language-")) {
+      return (
+        <SyntaxHighlighter style={oneDark} language={language} PreTag="div">
+          {String(children).replace(/\n$/, "")}
+        </SyntaxHighlighter>
+      );
+    }
+
+    return (
+      <code
+        className="bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded text-sm font-mono"
+        {...props}
+      />
+    );
+  },
+};
+
+export default function MDXContent({ content }: { content: string }) {
+  const [mdxSource, setMdxSource] = useState<MDXRemoteSerializeResult | null>(
+    null
+  );
+
+  useEffect(() => {
+    serialize(content, {
+      mdxOptions: {
+        remarkPlugins: [remarkGfm],
+      },
+    }).then(setMdxSource);
+  }, [content]);
+
+  if (!mdxSource) return <div>Loading...</div>;
+
+  return <MDXRemote {...mdxSource} components={components} />;
+}
+```
+
+### 数据管理
+
+```typescript
+// 博客文章数据获取
+export function getAllPosts(): Post[] {
+  const files = fs.readdirSync(postsDirectory);
+  const posts = files
+    .filter((file) => file.endsWith(".mdx"))
+    .map((file) => {
+      const filePath = path.join(postsDirectory, file);
+      const fileContents = fs.readFileSync(filePath, "utf8");
+      const { data, content } = matter(fileContents);
+
+      return {
+        id: file.replace(".mdx", ""),
+        slug: data.slug || file.replace(".mdx", ""),
+        title: data.title,
+        excerpt: data.excerpt || content.slice(0, 200),
+        date: data.date,
+        published: data.published !== false,
+        category: data.category || "General",
+        tags: data.tags || [],
+        author: data.author || "Author",
+        content,
+        readingTime: calculateReadingTime(content),
+      };
+    });
+
+  return posts
+    .filter((post) => post.published)
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+}
+
+// 项目数据获取（支持 MDX）
+export function getAllProjects(): Project[] {
+  // 优先从 MDX 文件读取
+  const mdxProjects = getAllProjectsFromMDX();
+  if (mdxProjects.length > 0) {
+    return mdxProjects;
+  }
+
+  // 回退到 JSON 文件
+  const filePath = path.join(projectsDirectory, "projects.json");
+  const fileContents = fs.readFileSync(filePath, "utf8");
+  const projects = JSON.parse(fileContents) as Project[];
+
+  return projects
+    .filter((project) => project.published)
+    .sort(
+      (a, b) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+}
+```
+
+## 🎨 设计系统
+
+### Tailwind CSS 配置
+
+```javascript
+// tailwind.config.js
+module.exports = {
+  content: [
+    "./pages/**/*.{js,ts,jsx,tsx,mdx}",
+    "./components/**/*.{js,ts,jsx,tsx,mdx}",
+    "./app/**/*.{js,ts,jsx,tsx,mdx}",
+  ],
+  theme: {
+    extend: {
+      typography: {
+        DEFAULT: {
+          css: {
+            maxWidth: "none",
+            color: "inherit",
+            a: {
+              color: "inherit",
+              textDecoration: "underline",
+              fontWeight: "500",
+            },
+            '[class~="lead"]': {
+              color: "inherit",
+            },
+            strong: {
+              color: "inherit",
+              fontWeight: "600",
+            },
+            'ol[type="A"]': {
+              "--list-counter-style": "upper-alpha",
+            },
+            'ol[type="a"]': {
+              "--list-counter-style": "lower-alpha",
+            },
+            'ol[type="A" s]': {
+              "--list-counter-style": "upper-alpha",
+            },
+            'ol[type="a" s]': {
+              "--list-counter-style": "lower-alpha",
+            },
+            'ol[type="I"]': {
+              "--list-counter-style": "upper-roman",
+            },
+            'ol[type="i"]': {
+              "--list-counter-style": "lower-roman",
+            },
+            'ol[type="I" s]': {
+              "--list-counter-style": "upper-roman",
+            },
+            'ol[type="i" s]': {
+              "--list-counter-style": "lower-roman",
+            },
+            'ol[type="1"]': {
+              "--list-counter-style": "decimal",
+            },
+          },
+        },
+      },
+    },
+  },
+  plugins: [require("@tailwindcss/typography")],
+};
+```
+
+### 响应式设计
+
+- **移动优先**：采用移动优先的设计策略
+- **断点系统**：完整的响应式断点覆盖
+- **触摸友好**：优化的移动端交互体验
+- **性能考虑**：移动端性能优化
+
+### 暗黑模式
+
+```typescript
+// 主题切换组件
+"use client";
+
+import { useTheme } from "next-themes";
+import { Button } from "@/components/ui/button";
+import { Moon, Sun } from "lucide-react";
+
+export function ThemeToggle() {
+  const { theme, setTheme } = useTheme();
+
+  return (
+    <Button
+      variant="ghost"
+      size="sm"
+      onClick={() => setTheme(theme === "light" ? "dark" : "light")}
+    >
+      <Sun className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+      <Moon className="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+      <span className="sr-only">Toggle theme</span>
+    </Button>
+  );
+}
+```
+
+## 📱 用户体验
+
+### 导航系统
+
+```typescript
+// 响应式导航组件
+export default function Navigation() {
+  const [isOpen, setIsOpen] = useState(false);
+  const pathname = usePathname();
+
+  const navItems = [
+    { href: "/", label: "首页" },
+    { href: "/blog", label: "博客" },
+    { href: "/projects", label: "项目" },
+    { href: "/resume", label: "简历" },
+  ];
+
+  return (
+    <nav className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <div className="container flex h-14 items-center">
+        <div className="mr-4 hidden md:flex">
+          <Link href="/" className="mr-6 flex items-center space-x-2">
+            <span className="hidden font-bold sm:inline-block">Your Name</span>
+          </Link>
+          <nav className="flex items-center space-x-6 text-sm font-medium">
+            {navItems.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={cn(
+                  "transition-colors hover:text-foreground/80",
+                  pathname === item.href
+                    ? "text-foreground"
+                    : "text-foreground/60"
+                )}
+              >
+                {item.label}
+              </Link>
+            ))}
+          </nav>
+        </div>
+
+        {/* 移动端菜单 */}
+        <Sheet open={isOpen} onOpenChange={setIsOpen}>
+          <SheetTrigger asChild>
+            <Button
+              variant="ghost"
+              className="mr-2 px-0 text-base hover:bg-transparent focus-visible:bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 md:hidden"
+            >
+              <Menu className="h-5 w-5" />
+              <span className="sr-only">Toggle Menu</span>
+            </Button>
+          </SheetTrigger>
+          <SheetContent side="left" className="pr-0">
+            <MobileNav />
+          </SheetContent>
+        </Sheet>
+
+        <div className="flex flex-1 items-center justify-between space-x-2 md:justify-end">
+          <div className="w-full flex-1 md:w-auto md:flex-none">
+            {/* 搜索功能可以在这里添加 */}
+          </div>
+          <nav className="flex items-center">
+            <ThemeToggle />
+          </nav>
+        </div>
+      </div>
+    </nav>
+  );
+}
+```
+
+### 动画效果
+
+```typescript
+// Framer Motion 动画配置
+const fadeInUp = {
+  initial: { opacity: 0, y: 20 },
+  animate: { opacity: 1, y: 0 },
+  transition: { duration: 0.5 },
+};
+
+const staggerContainer = {
+  animate: {
+    transition: {
+      staggerChildren: 0.1,
+    },
+  },
+};
+
+// 页面动画组件
+export function AnimatedPage({ children }: { children: React.ReactNode }) {
+  return (
+    <motion.div initial="initial" animate="animate" variants={staggerContainer}>
+      {children}
+    </motion.div>
+  );
+}
+
+// 卡片动画
+export function AnimatedCard({
+  children,
+  delay = 0,
+}: {
+  children: React.ReactNode;
+  delay?: number;
+}) {
+  return (
+    <motion.div
+      variants={fadeInUp}
+      transition={{ delay }}
+      whileHover={{ y: -5 }}
+      className="h-full"
+    >
+      {children}
+    </motion.div>
+  );
+}
+```
+
+## 🔧 开发工具
+
+### TypeScript 配置
+
+```json
+{
+  "compilerOptions": {
+    "target": "es5",
+    "lib": ["dom", "dom.iterable", "es6"],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "preserve",
+    "incremental": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./*"]
+    }
+  },
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
+  "exclude": ["node_modules"]
+}
+```
+
+### ESLint 和 Prettier
+
+```json
+// .eslintrc.json
+{
+  "extends": ["next/core-web-vitals", "prettier"],
+  "rules": {
+    "prefer-const": "error",
+    "no-unused-vars": "warn",
+    "no-console": "warn"
+  }
+}
+
+// .prettierrc
+{
+  "semi": true,
+  "trailingComma": "es5",
+  "singleQuote": true,
+  "printWidth": 80,
+  "tabWidth": 2
+}
+```
+
+## 🚀 部署配置
+
+### Vercel 部署
+
+```json
+// vercel.json
+{
+  "buildCommand": "npm run build",
+  "outputDirectory": ".next",
+  "framework": "nextjs",
+  "regions": ["hkg1"],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        },
+        {
+          "key": "X-XSS-Protection",
+          "value": "1; mode=block"
+        }
+      ]
+    }
+  ]
+}
+```
+
+### 环境变量
+
+```bash
+# .env.local
+NEXT_PUBLIC_SITE_URL=https://yourdomain.com
+NEXT_PUBLIC_SITE_NAME="Your Blog"
+NEXT_PUBLIC_SITE_DESCRIPTION="A modern blog built with Next.js"
+
+# 分析工具（可选）
+NEXT_PUBLIC_GOOGLE_ANALYTICS=G-XXXXXXXXXX
+NEXT_PUBLIC_UMAMI_WEBSITE_ID=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+```
+
+### 性能监控
+
+```typescript
+// next.config.js
+const nextConfig = {
+  experimental: {
+    webVitalsAttribution: ["CLS", "LCP"],
+  },
+  images: {
+    domains: ["images.unsplash.com", "github.com"],
+    formats: ["image/webp", "image/avif"],
+  },
+  async headers() {
+    return [
+      {
+        source: "/(.*)",
+        headers: [
+          {
+            key: "X-DNS-Prefetch-Control",
+            value: "on",
+          },
+          {
+            key: "Strict-Transport-Security",
+            value: "max-age=63072000; includeSubDomains; preload",
+          },
+        ],
+      },
+    ];
+  },
+};
+
+module.exports = nextConfig;
+```
+
+## 📊 SEO 优化
+
+### Meta 标签管理
+
+```typescript
+// app/layout.tsx
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: {
+    default: "Your Name - Developer & Creator",
+    template: "%s | Your Name",
+  },
+  description:
+    "Personal blog and portfolio showcasing web development projects and technical articles.",
+  keywords: ["Next.js", "React", "TypeScript", "Web Development", "Blog"],
+  authors: [{ name: "Your Name" }],
+  creator: "Your Name",
+  openGraph: {
+    type: "website",
+    locale: "zh_CN",
+    url: "https://yourdomain.com",
+    title: "Your Name - Developer & Creator",
+    description:
+      "Personal blog and portfolio showcasing web development projects and technical articles.",
+    siteName: "Your Name",
+    images: [
+      {
+        url: "/og-image.jpg",
+        width: 1200,
+        height: 630,
+        alt: "Your Name - Developer & Creator",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Your Name - Developer & Creator",
+    description:
+      "Personal blog and portfolio showcasing web development projects and technical articles.",
+    images: ["/og-image.jpg"],
+    creator: "@yourusername",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
+};
+```
+
+### 结构化数据
+
+```typescript
+// 博客文章结构化数据
+export function generateArticleJsonLd(post: Post) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    headline: post.title,
+    description: post.excerpt,
+    image: post.image || "/default-og-image.jpg",
+    datePublished: post.date,
+    dateModified: post.updatedAt || post.date,
+    author: {
+      "@type": "Person",
+      name: post.author,
+    },
+    publisher: {
+      "@type": "Organization",
+      name: "Your Name",
+      logo: {
+        "@type": "ImageObject",
+        url: "/logo.png",
+      },
+    },
+  };
+}
+```
+
+## 🎯 特色亮点
+
+### 1. 现代化技术栈
+
+- **Next.js 14**：最新的 React 全栈框架
+- **App Router**：新一代路由系统
+- **TypeScript**：类型安全的开发体验
+- **Tailwind CSS**：实用优先的 CSS 框架
+
+### 2. 内容管理
+
+- **MDX 支持**：Markdown + React 组件
+- **静态生成**：构建时预渲染所有页面
+- **热重载**：开发时实时预览
+- **版本控制**：Git 管理内容版本
+
+### 3. 用户体验
+
+- **响应式设计**：完美适配所有设备
+- **暗黑模式**：系统级主题切换
+- **流畅动画**：Framer Motion 驱动
+- **快速加载**：优化的性能表现
+
+### 4. 开发体验
+
+- **类型安全**：完整的 TypeScript 支持
+- **代码规范**：ESLint + Prettier 自动格式化
+- **组件化**：可复用的 UI 组件库
+- **热更新**：开发时快速迭代
+
+## 🔮 未来规划
+
+### 短期目标（1-3 个月）
+
+- **搜索功能**：全文搜索和标签过滤
+- **评论系统**：集成 Giscus 或 Utterances
+- **RSS 订阅**：自动生成 RSS feed
+- **站点地图**：SEO 优化的 sitemap
+
+### 中期目标（3-6 个月）
+
+- **CMS 集成**：Headless CMS 支持
+- **多语言**：国际化支持
+- **PWA 功能**：离线阅读支持
+- **性能监控**：Web Vitals 追踪
+
+### 长期愿景（6-12 个月）
+
+- **AI 助手**：智能内容推荐
+- **社交功能**：读者互动增强
+- **数据分析**：详细的访问统计
+- **内容协作**：多作者支持
+
+---
+
+这个博客系统不仅是一个展示平台，更是现代 Web 开发技术的实践案例。通过采用最新的技术栈和最佳实践，它为开发者提供了一个高质量、高性能的个人品牌建设解决方案。无论是技术分享、项目展示还是个人品牌建设，这个系统都能满足现代开发者的各种需求。

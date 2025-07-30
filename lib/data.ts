@@ -129,6 +129,13 @@ export function getPostBySlug(slug: string): Post | null {
 // 获取所有项目
 export function getAllProjects(): Project[] {
   try {
+    // 首先尝试从 MDX 文件读取
+    const mdxProjects = getAllProjectsFromMDX();
+    if (mdxProjects.length > 0) {
+      return mdxProjects;
+    }
+    
+    // 如果没有 MDX 文件，则从 JSON 文件读取
     const filePath = path.join(projectsDirectory, "projects.json");
     const fileContents = fs.readFileSync(filePath, "utf8");
     const projects = JSON.parse(fileContents) as Project[];
@@ -145,13 +152,95 @@ export function getAllProjects(): Project[] {
   }
 }
 
+// 从 MDX 文件读取所有项目
+function getAllProjectsFromMDX(): Project[] {
+  try {
+    const files = fs.readdirSync(projectsDirectory);
+    const mdxFiles = files.filter((file) => file.endsWith('.mdx'));
+    
+    if (mdxFiles.length === 0) {
+      return [];
+    }
+    
+    const projects: Project[] = mdxFiles.map((file) => {
+      const filePath = path.join(projectsDirectory, file);
+      const fileContents = fs.readFileSync(filePath, "utf8");
+      const { data, content } = matter(fileContents);
+      
+      return {
+        id: data.slug || file.replace('.mdx', ''),
+        title: data.title,
+        slug: data.slug,
+        description: data.description,
+        content: content,
+        technologies: data.technologies || [],
+        githubUrl: data.githubUrl,
+        liveUrl: data.liveUrl,
+        imageUrl: data.imageUrl,
+        featured: data.featured || false,
+        published: data.published !== false,
+        createdAt: data.createdAt,
+      };
+    });
+    
+    return projects
+      .filter((project) => project.published)
+      .sort(
+        (a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+  } catch (error) {
+    console.error("Error reading MDX projects:", error);
+    return [];
+  }
+}
+
 // 根据 slug 获取单个项目
 export function getProjectBySlug(slug: string): Project | null {
   try {
+    // 首先尝试从 MDX 文件读取
+    const mdxProject = getProjectFromMDX(slug);
+    if (mdxProject) {
+      return mdxProject;
+    }
+    
+    // 如果没有对应的 MDX 文件，则从 JSON 数据中查找
     const projects = getAllProjects();
     return projects.find((project) => project.slug === slug) || null;
   } catch (error) {
     console.error("Error getting project by slug:", error);
+    return null;
+  }
+}
+
+// 从 MDX 文件读取单个项目
+function getProjectFromMDX(slug: string): Project | null {
+  try {
+    const filePath = path.join(projectsDirectory, `${slug}.mdx`);
+    
+    if (!fs.existsSync(filePath)) {
+      return null;
+    }
+    
+    const fileContents = fs.readFileSync(filePath, "utf8");
+    const { data, content } = matter(fileContents);
+    
+    return {
+      id: data.slug || slug,
+      title: data.title,
+      slug: data.slug,
+      description: data.description,
+      content: content,
+      technologies: data.technologies || [],
+      githubUrl: data.githubUrl,
+      liveUrl: data.liveUrl,
+      imageUrl: data.imageUrl,
+      featured: data.featured || false,
+      published: data.published !== false,
+      createdAt: data.createdAt,
+    };
+  } catch (error) {
+    console.error("Error reading MDX project:", error);
     return null;
   }
 }
