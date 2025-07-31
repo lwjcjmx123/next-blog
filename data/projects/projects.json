@@ -57,5 +57,27 @@
     "featured": true,
     "published": true,
     "createdAt": "2024-03-01T00:00:00Z"
+  },
+  {
+    "id": "4",
+    "title": "智能单词学习浏览器插件",
+    "slug": "words-browser-extension",
+    "description": "一个智能的单词学习工具，支持划词翻译并保存到Notion数据库，提升英语学习效率",
+    "content": "智能单词学习浏览器插件是一款专为英语学习者设计的Chrome扩展程序。它能够在用户浏览网页时提供即时的单词翻译服务，并将学习记录自动保存到Notion数据库中，帮助用户建立个人化的单词学习体系。\n\n## 🚀 核心功能\n\n- 🖱️ 划词翻译：选中网页中的单词即可获得翻译\n- 🤖 AI智能翻译：集成DeepSeek AI提供准确的翻译结果\n- 📝 Notion集成：自动将学习的单词保存到个人Notion数据库\n- ⚙️ 灵活配置：支持自定义API配置和翻译模型\n- 🎨 优雅界面：现代化的弹窗设计，不干扰正常浏览\n- 📱 跨平台支持：支持所有基于Chromium的浏览器\n\n## 🛠️ 技术特点\n\n- 基于Manifest V3开发，符合最新Chrome扩展标准\n- 使用React + TypeScript构建现代化用户界面\n- 集成Notion API实现数据持久化存储\n- 支持多种AI翻译服务，可灵活切换\n- 采用Vite构建工具，开发体验优秀\n- 完整的TypeScript类型支持，代码质量高\n\n## 📚 学习价值\n\n- 帮助用户在日常浏览中积累词汇\n- 建立个人化的单词学习数据库\n- 提供便捷的复习和回顾功能\n- 支持学习进度跟踪和统计分析",
+    "technologies": [
+      "Chrome Extension",
+      "React",
+      "TypeScript",
+      "Vite",
+      "Notion API",
+      "DeepSeek AI",
+      "Manifest V3"
+    ],
+    "githubUrl": "https://github.com/lwjcjmx123/words-browser-extension",
+    "liveUrl": "",
+    "imageUrl": "/images/projects/words-extension-preview.jpg",
+    "featured": true,
+    "published": true,
+    "createdAt": "2024-03-15T00:00:00Z"
   }
 ]

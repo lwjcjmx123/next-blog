@@ -167,10 +167,12 @@ function getAllProjectsFromMDX(): Project[] {
       const fileContents = fs.readFileSync(filePath, "utf8");
       const { data, content } = matter(fileContents);
       
+      const slug = data.slug || file.replace('.mdx', '');
+      
       return {
-        id: data.slug || file.replace('.mdx', ''),
+        id: slug,
         title: data.title,
-        slug: data.slug,
+        slug: slug,
         description: data.description,
         content: content,
         technologies: data.technologies || [],

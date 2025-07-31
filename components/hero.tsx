@@ -113,7 +113,7 @@ export function Hero() {
             className="flex justify-center space-x-6"
           >
             <a
-              href="https://github.com"
+              href="https://github.com/lwjcjmx23"
               target="_blank"
               rel="noopener noreferrer"
               className="text-muted-foreground hover:text-foreground transition-colors"
@@ -122,7 +122,7 @@ export function Hero() {
               <span className="sr-only">GitHub</span>
             </a>
             <a
-              href="mailto:contact@example.com"
+              href="lwjcjmx123@gmail.com"
               className="text-muted-foreground hover:text-foreground transition-colors"
             >
               <Mail className="h-6 w-6" />

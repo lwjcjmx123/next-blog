@@ -1,0 +1,1381 @@
+---
+title: "从零构建React组件库：设计系统与工程化实践"
+slug: "react-component-library-from-scratch"
+excerpt: "详细介绍如何从零开始构建一个完整的React组件库，包括设计系统规划、组件开发、文档生成、测试策略和发布流程。"
+date: "2024-03-10"
+published: true
+category: "实战项目"
+tags: ["React", "组件库", "TypeScript"]
+author: "hailong"
+readingTime: 20
+---
+
+## 引言
+
+在现代前端开发中，组件库已成为提高开发效率、保证设计一致性的重要工具。一个优秀的组件库不仅能够复用代码，更能建立统一的设计语言，提升团队协作效率。本文将详细介绍如何从零开始构建一个完整的React组件库。
+
+## 项目规划与架构设计
+
+### 1. 技术栈选择
+
+我们将使用以下技术栈来构建组件库：
+
+```json
+{
+  "核心技术": {
+    "React": "^18.0.0",
+    "TypeScript": "^4.9.0",
+    "Styled-components": "^5.3.0"
+  },
+  "构建工具": {
+    "Rollup": "^3.0.0",
+    "Babel": "^7.20.0",
+    "PostCSS": "^8.4.0"
+  },
+  "开发工具": {
+    "Storybook": "^6.5.0",
+    "Jest": "^29.0.0",
+    "React Testing Library": "^13.0.0",
+    "Chromatic": "^6.0.0"
+  },
+  "代码质量": {
+    "ESLint": "^8.0.0",
+    "Prettier": "^2.8.0",
+    "Husky": "^8.0.0",
+    "Lint-staged": "^13.0.0"
+  }
+}
+```
+
+### 2. 项目结构设计
+
+```
+my-ui-library/
+├── packages/
+│   ├── core/                 # 核心组件包
+│   │   ├── src/
+│   │   │   ├── components/   # 组件源码
+│   │   │   ├── tokens/       # 设计令牌
+│   │   │   ├── utils/        # 工具函数
+│   │   │   └── index.ts      # 入口文件
+│   │   ├── package.json
+│   │   └── rollup.config.js
+│   ├── icons/                # 图标包
+│   └── themes/               # 主题包
+├── apps/
+│   ├── storybook/            # Storybook文档
+│   └── playground/           # 测试应用
+├── tools/
+│   ├── build/                # 构建脚本
+│   ├── eslint-config/        # ESLint配置
+│   └── jest-config/          # Jest配置
+├── docs/                     # 文档
+├── .github/                  # GitHub Actions
+├── package.json              # 根package.json
+├── lerna.json                # Lerna配置
+└── tsconfig.json             # TypeScript配置
+```
+
+### 3. 设计系统规划
+
+```typescript
+// packages/core/src/tokens/index.ts
+export const designTokens = {
+  // 颜色系统
+  colors: {
+    primary: {
+      50: '#f0f9ff',
+      100: '#e0f2fe',
+      200: '#bae6fd',
+      300: '#7dd3fc',
+      400: '#38bdf8',
+      500: '#0ea5e9',
+      600: '#0284c7',
+      700: '#0369a1',
+      800: '#075985',
+      900: '#0c4a6e'
+    },
+    gray: {
+      50: '#f9fafb',
+      100: '#f3f4f6',
+      200: '#e5e7eb',
+      300: '#d1d5db',
+      400: '#9ca3af',
+      500: '#6b7280',
+      600: '#4b5563',
+      700: '#374151',
+      800: '#1f2937',
+      900: '#111827'
+    },
+    semantic: {
+      success: '#10b981',
+      warning: '#f59e0b',
+      error: '#ef4444',
+      info: '#3b82f6'
+    }
+  },
+  
+  // 间距系统
+  spacing: {
+    0: '0',
+    1: '0.25rem',
+    2: '0.5rem',
+    3: '0.75rem',
+    4: '1rem',
+    5: '1.25rem',
+    6: '1.5rem',
+    8: '2rem',
+    10: '2.5rem',
+    12: '3rem',
+    16: '4rem',
+    20: '5rem',
+    24: '6rem'
+  },
+  
+  // 字体系统
+  typography: {
+    fontFamily: {
+      sans: ['Inter', 'system-ui', 'sans-serif'],
+      mono: ['Fira Code', 'monospace']
+    },
+    fontSize: {
+      xs: ['0.75rem', { lineHeight: '1rem' }],
+      sm: ['0.875rem', { lineHeight: '1.25rem' }],
+      base: ['1rem', { lineHeight: '1.5rem' }],
+      lg: ['1.125rem', { lineHeight: '1.75rem' }],
+      xl: ['1.25rem', { lineHeight: '1.75rem' }],
+      '2xl': ['1.5rem', { lineHeight: '2rem' }],
+      '3xl': ['1.875rem', { lineHeight: '2.25rem' }],
+      '4xl': ['2.25rem', { lineHeight: '2.5rem' }]
+    },
+    fontWeight: {
+      normal: '400',
+      medium: '500',
+      semibold: '600',
+      bold: '700'
+    }
+  },
+  
+  // 阴影系统
+  shadows: {
+    sm: '0 1px 2px 0 rgb(0 0 0 / 0.05)',
+    base: '0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1)',
+    md: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)',
+    lg: '0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)',
+    xl: '0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)'
+  },
+  
+  // 边框半径
+  borderRadius: {
+    none: '0',
+    sm: '0.125rem',
+    base: '0.25rem',
+    md: '0.375rem',
+    lg: '0.5rem',
+    xl: '0.75rem',
+    '2xl': '1rem',
+    full: '9999px'
+  },
+  
+  // 断点系统
+  breakpoints: {
+    sm: '640px',
+    md: '768px',
+    lg: '1024px',
+    xl: '1280px',
+    '2xl': '1536px'
+  },
+  
+  // 动画系统
+  animation: {
+    duration: {
+      fast: '150ms',
+      normal: '300ms',
+      slow: '500ms'
+    },
+    easing: {
+      linear: 'linear',
+      easeIn: 'cubic-bezier(0.4, 0, 1, 1)',
+      easeOut: 'cubic-bezier(0, 0, 0.2, 1)',
+      easeInOut: 'cubic-bezier(0.4, 0, 0.2, 1)'
+    }
+  }
+};
+
+// 类型定义
+export type DesignTokens = typeof designTokens;
+export type ColorScale = keyof typeof designTokens.colors.primary;
+export type SpacingScale = keyof typeof designTokens.spacing;
+export type FontSize = keyof typeof designTokens.typography.fontSize;
+```
+
+## 核心组件开发
+
+### 1. Button组件实现
+
+```typescript
+// packages/core/src/components/Button/Button.types.ts
+import { ReactNode, ButtonHTMLAttributes } from 'react';
+
+export interface ButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'size'> {
+  /** 按钮内容 */
+  children: ReactNode;
+  /** 按钮变体 */
+  variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
+  /** 按钮尺寸 */
+  size?: 'sm' | 'md' | 'lg';
+  /** 是否为加载状态 */
+  loading?: boolean;
+  /** 是否禁用 */
+  disabled?: boolean;
+  /** 是否为全宽 */
+  fullWidth?: boolean;
+  /** 左侧图标 */
+  leftIcon?: ReactNode;
+  /** 右侧图标 */
+  rightIcon?: ReactNode;
+  /** 点击事件处理器 */
+  onClick?: (event: React.MouseEvent<HTMLButtonElement>) => void;
+}
+```
+
+```typescript
+// packages/core/src/components/Button/Button.styles.ts
+import styled, { css } from 'styled-components';
+import { designTokens } from '../../tokens';
+import { ButtonProps } from './Button.types';
+
+const getVariantStyles = (variant: ButtonProps['variant']) => {
+  const { colors } = designTokens;
+  
+  switch (variant) {
+    case 'primary':
+      return css`
+        background-color: ${colors.primary[500]};
+        color: white;
+        border: 1px solid ${colors.primary[500]};
+        
+        &:hover:not(:disabled) {
+          background-color: ${colors.primary[600]};
+          border-color: ${colors.primary[600]};
+        }
+        
+        &:active:not(:disabled) {
+          background-color: ${colors.primary[700]};
+          border-color: ${colors.primary[700]};
+        }
+      `;
+      
+    case 'secondary':
+      return css`
+        background-color: ${colors.gray[100]};
+        color: ${colors.gray[900]};
+        border: 1px solid ${colors.gray[200]};
+        
+        &:hover:not(:disabled) {
+          background-color: ${colors.gray[200]};
+          border-color: ${colors.gray[300]};
+        }
+      `;
+      
+    case 'outline':
+      return css`
+        background-color: transparent;
+        color: ${colors.primary[600]};
+        border: 1px solid ${colors.primary[300]};
+        
+        &:hover:not(:disabled) {
+          background-color: ${colors.primary[50]};
+          border-color: ${colors.primary[400]};
+        }
+      `;
+      
+    case 'ghost':
+      return css`
+        background-color: transparent;
+        color: ${colors.gray[700]};
+        border: 1px solid transparent;
+        
+        &:hover:not(:disabled) {
+          background-color: ${colors.gray[100]};
+        }
+      `;
+      
+    case 'danger':
+      return css`
+        background-color: ${colors.semantic.error};
+        color: white;
+        border: 1px solid ${colors.semantic.error};
+        
+        &:hover:not(:disabled) {
+          background-color: #dc2626;
+          border-color: #dc2626;
+        }
+      `;
+      
+    default:
+      return getVariantStyles('primary');
+  }
+};
+
+const getSizeStyles = (size: ButtonProps['size']) => {
+  const { spacing, typography } = designTokens;
+  
+  switch (size) {
+    case 'sm':
+      return css`
+        padding: ${spacing[2]} ${spacing[3]};
+        font-size: ${typography.fontSize.sm[0]};
+        line-height: ${typography.fontSize.sm[1].lineHeight};
+      `;
+      
+    case 'md':
+      return css`
+        padding: ${spacing[3]} ${spacing[4]};
+        font-size: ${typography.fontSize.base[0]};
+        line-height: ${typography.fontSize.base[1].lineHeight};
+      `;
+      
+    case 'lg':
+      return css`
+        padding: ${spacing[4]} ${spacing[6]};
+        font-size: ${typography.fontSize.lg[0]};
+        line-height: ${typography.fontSize.lg[1].lineHeight};
+      `;
+      
+    default:
+      return getSizeStyles('md');
+  }
+};
+
+export const StyledButton = styled.button<ButtonProps>`
+  /* 基础样式 */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: ${designTokens.spacing[2]};
+  font-family: ${designTokens.typography.fontFamily.sans.join(', ')};
+  font-weight: ${designTokens.typography.fontWeight.medium};
+  border-radius: ${designTokens.borderRadius.md};
+  transition: all ${designTokens.animation.duration.fast} ${designTokens.animation.easing.easeInOut};
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  
+  /* 焦点样式 */
+  &:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px ${designTokens.colors.primary[200]};
+  }
+  
+  /* 禁用样式 */
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  
+  /* 变体样式 */
+  ${props => getVariantStyles(props.variant)}
+  
+  /* 尺寸样式 */
+  ${props => getSizeStyles(props.size)}
+  
+  /* 全宽样式 */
+  ${props => props.fullWidth && css`
+    width: 100%;
+  `}
+  
+  /* 加载状态 */
+  ${props => props.loading && css`
+    pointer-events: none;
+  `}
+`;
+
+export const LoadingSpinner = styled.div`
+  width: 1em;
+  height: 1em;
+  border: 2px solid transparent;
+  border-top: 2px solid currentColor;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+`;
+
+export const IconWrapper = styled.span`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1em;
+  height: 1em;
+`;
+```
+
+```typescript
+// packages/core/src/components/Button/Button.tsx
+import React, { forwardRef } from 'react';
+import { ButtonProps } from './Button.types';
+import { StyledButton, LoadingSpinner, IconWrapper } from './Button.styles';
+
+export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
+  (
+    {
+      children,
+      variant = 'primary',
+      size = 'md',
+      loading = false,
+      disabled = false,
+      fullWidth = false,
+      leftIcon,
+      rightIcon,
+      onClick,
+      ...rest
+    },
+    ref
+  ) => {
+    const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+      if (loading || disabled) {
+        event.preventDefault();
+        return;
+      }
+      onClick?.(event);
+    };
+
+    return (
+      <StyledButton
+        ref={ref}
+        variant={variant}
+        size={size}
+        fullWidth={fullWidth}
+        loading={loading}
+        disabled={disabled || loading}
+        onClick={handleClick}
+        {...rest}
+      >
+        {loading && <LoadingSpinner />}
+        {!loading && leftIcon && <IconWrapper>{leftIcon}</IconWrapper>}
+        {children}
+        {!loading && rightIcon && <IconWrapper>{rightIcon}</IconWrapper>}
+      </StyledButton>
+    );
+  }
+);
+
+Button.displayName = 'Button';
+```
+
+### 2. Input组件实现
+
+```typescript
+// packages/core/src/components/Input/Input.types.ts
+import { InputHTMLAttributes, ReactNode } from 'react';
+
+export interface InputProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'size'> {
+  /** 输入框标签 */
+  label?: string;
+  /** 输入框尺寸 */
+  size?: 'sm' | 'md' | 'lg';
+  /** 错误状态 */
+  error?: boolean;
+  /** 错误信息 */
+  errorMessage?: string;
+  /** 帮助文本 */
+  helperText?: string;
+  /** 左侧图标 */
+  leftIcon?: ReactNode;
+  /** 右侧图标 */
+  rightIcon?: ReactNode;
+  /** 是否必填 */
+  required?: boolean;
+  /** 是否全宽 */
+  fullWidth?: boolean;
+}
+```
+
+```typescript
+// packages/core/src/components/Input/Input.tsx
+import React, { forwardRef, useId } from 'react';
+import { InputProps } from './Input.types';
+import {
+  InputContainer,
+  Label,
+  InputWrapper,
+  StyledInput,
+  IconWrapper,
+  HelperText,
+  ErrorMessage
+} from './Input.styles';
+
+export const Input = forwardRef<HTMLInputElement, InputProps>(
+  (
+    {
+      label,
+      size = 'md',
+      error = false,
+      errorMessage,
+      helperText,
+      leftIcon,
+      rightIcon,
+      required = false,
+      fullWidth = false,
+      id,
+      ...rest
+    },
+    ref
+  ) => {
+    const inputId = useId();
+    const finalId = id || inputId;
+    const helperId = `${finalId}-helper`;
+    const errorId = `${finalId}-error`;
+
+    return (
+      <InputContainer fullWidth={fullWidth}>
+        {label && (
+          <Label htmlFor={finalId} required={required}>
+            {label}
+            {required && <span aria-label="required"> *</span>}
+          </Label>
+        )}
+        
+        <InputWrapper error={error} size={size}>
+          {leftIcon && <IconWrapper position="left">{leftIcon}</IconWrapper>}
+          
+          <StyledInput
+            ref={ref}
+            id={finalId}
+            size={size}
+            error={error}
+            hasLeftIcon={!!leftIcon}
+            hasRightIcon={!!rightIcon}
+            aria-describedby={
+              error && errorMessage
+                ? errorId
+                : helperText
+                ? helperId
+                : undefined
+            }
+            aria-invalid={error}
+            {...rest}
+          />
+          
+          {rightIcon && <IconWrapper position="right">{rightIcon}</IconWrapper>}
+        </InputWrapper>
+        
+        {error && errorMessage && (
+          <ErrorMessage id={errorId} role="alert">
+            {errorMessage}
+          </ErrorMessage>
+        )}
+        
+        {!error && helperText && (
+          <HelperText id={helperId}>{helperText}</HelperText>
+        )}
+      </InputContainer>
+    );
+  }
+);
+
+Input.displayName = 'Input';
+```
+
+### 3. 复合组件：Modal
+
+```typescript
+// packages/core/src/components/Modal/Modal.tsx
+import React, { useEffect, useRef, ReactNode } from 'react';
+import { createPortal } from 'react-dom';
+import { useScrollLock } from '../../hooks/useScrollLock';
+import { useFocusTrap } from '../../hooks/useFocusTrap';
+import {
+  Overlay,
+  ModalContainer,
+  ModalContent,
+  ModalHeader,
+  ModalTitle,
+  CloseButton,
+  ModalBody,
+  ModalFooter
+} from './Modal.styles';
+
+export interface ModalProps {
+  /** 是否显示模态框 */
+  open: boolean;
+  /** 关闭模态框的回调 */
+  onClose: () => void;
+  /** 模态框标题 */
+  title?: string;
+  /** 模态框内容 */
+  children: ReactNode;
+  /** 底部操作区域 */
+  footer?: ReactNode;
+  /** 模态框尺寸 */
+  size?: 'sm' | 'md' | 'lg' | 'xl';
+  /** 是否显示关闭按钮 */
+  showCloseButton?: boolean;
+  /** 点击遮罩是否关闭 */
+  closeOnOverlayClick?: boolean;
+  /** 按ESC是否关闭 */
+  closeOnEscape?: boolean;
+  /** 自定义容器 */
+  container?: Element;
+}
+
+export const Modal: React.FC<ModalProps> = ({
+  open,
+  onClose,
+  title,
+  children,
+  footer,
+  size = 'md',
+  showCloseButton = true,
+  closeOnOverlayClick = true,
+  closeOnEscape = true,
+  container
+}) => {
+  const modalRef = useRef<HTMLDivElement>(null);
+  const previousActiveElement = useRef<Element | null>(null);
+  
+  // 锁定滚动
+  useScrollLock(open);
+  
+  // 焦点陷阱
+  useFocusTrap(modalRef, open);
+  
+  // 处理ESC键关闭
+  useEffect(() => {
+    if (!open || !closeOnEscape) return;
+    
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        onClose();
+      }
+    };
+    
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [open, closeOnEscape, onClose]);
+  
+  // 管理焦点
+  useEffect(() => {
+    if (open) {
+      previousActiveElement.current = document.activeElement;
+    } else if (previousActiveElement.current) {
+      (previousActiveElement.current as HTMLElement).focus?.();
+    }
+  }, [open]);
+  
+  // 处理遮罩点击
+  const handleOverlayClick = (event: React.MouseEvent) => {
+    if (closeOnOverlayClick && event.target === event.currentTarget) {
+      onClose();
+    }
+  };
+  
+  if (!open) return null;
+  
+  const modalContent = (
+    <Overlay onClick={handleOverlayClick}>
+      <ModalContainer
+        ref={modalRef}
+        size={size}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={title ? 'modal-title' : undefined}
+      >
+        <ModalContent>
+          {(title || showCloseButton) && (
+            <ModalHeader>
+              {title && (
+                <ModalTitle id="modal-title">{title}</ModalTitle>
+              )}
+              {showCloseButton && (
+                <CloseButton
+                  onClick={onClose}
+                  aria-label="关闭模态框"
+                  type="button"
+                >
+                  ×
+                </CloseButton>
+              )}
+            </ModalHeader>
+          )}
+          
+          <ModalBody>{children}</ModalBody>
+          
+          {footer && <ModalFooter>{footer}</ModalFooter>}
+        </ModalContent>
+      </ModalContainer>
+    </Overlay>
+  );
+  
+  return createPortal(
+    modalContent,
+    container || document.body
+  );
+};
+```
+
+## 工具函数与Hooks
+
+### 1. 自定义Hooks
+
+```typescript
+// packages/core/src/hooks/useScrollLock.ts
+import { useEffect } from 'react';
+
+export const useScrollLock = (lock: boolean) => {
+  useEffect(() => {
+    if (!lock) return;
+    
+    const originalStyle = window.getComputedStyle(document.body).overflow;
+    document.body.style.overflow = 'hidden';
+    
+    return () => {
+      document.body.style.overflow = originalStyle;
+    };
+  }, [lock]);
+};
+```
+
+```typescript
+// packages/core/src/hooks/useFocusTrap.ts
+import { useEffect, RefObject } from 'react';
+
+const FOCUSABLE_ELEMENTS = [
+  'a[href]',
+  'button:not([disabled])',
+  'textarea:not([disabled])',
+  'input:not([disabled])',
+  'select:not([disabled])',
+  '[tabindex]:not([tabindex="-1"])'
+].join(', ');
+
+export const useFocusTrap = (
+  containerRef: RefObject<HTMLElement>,
+  active: boolean
+) => {
+  useEffect(() => {
+    if (!active || !containerRef.current) return;
+    
+    const container = containerRef.current;
+    const focusableElements = container.querySelectorAll(FOCUSABLE_ELEMENTS);
+    const firstElement = focusableElements[0] as HTMLElement;
+    const lastElement = focusableElements[focusableElements.length - 1] as HTMLElement;
+    
+    const handleTabKey = (event: KeyboardEvent) => {
+      if (event.key !== 'Tab') return;
+      
+      if (event.shiftKey) {
+        if (document.activeElement === firstElement) {
+          event.preventDefault();
+          lastElement?.focus();
+        }
+      } else {
+        if (document.activeElement === lastElement) {
+          event.preventDefault();
+          firstElement?.focus();
+        }
+      }
+    };
+    
+    // 初始焦点
+    firstElement?.focus();
+    
+    container.addEventListener('keydown', handleTabKey);
+    
+    return () => {
+      container.removeEventListener('keydown', handleTabKey);
+    };
+  }, [active, containerRef]);
+};
+```
+
+### 2. 工具函数
+
+```typescript
+// packages/core/src/utils/classNames.ts
+export type ClassValue = string | number | boolean | undefined | null | ClassArray | ClassDictionary;
+
+interface ClassDictionary {
+  [id: string]: any;
+}
+
+interface ClassArray extends Array<ClassValue> {}
+
+export function classNames(...classes: ClassValue[]): string {
+  const result: string[] = [];
+  
+  for (const cls of classes) {
+    if (!cls) continue;
+    
+    if (typeof cls === 'string' || typeof cls === 'number') {
+      result.push(String(cls));
+    } else if (Array.isArray(cls)) {
+      const inner = classNames(...cls);
+      if (inner) result.push(inner);
+    } else if (typeof cls === 'object') {
+      for (const key in cls) {
+        if (cls[key]) result.push(key);
+      }
+    }
+  }
+  
+  return result.join(' ');
+}
+```
+
+```typescript
+// packages/core/src/utils/responsive.ts
+import { designTokens } from '../tokens';
+
+export const createMediaQuery = (breakpoint: keyof typeof designTokens.breakpoints) => {
+  return `@media (min-width: ${designTokens.breakpoints[breakpoint]})`;
+};
+
+export const useMediaQuery = (query: string): boolean => {
+  const [matches, setMatches] = useState(false);
+  
+  useEffect(() => {
+    const media = window.matchMedia(query);
+    setMatches(media.matches);
+    
+    const listener = (event: MediaQueryListEvent) => {
+      setMatches(event.matches);
+    };
+    
+    media.addEventListener('change', listener);
+    return () => media.removeEventListener('change', listener);
+  }, [query]);
+  
+  return matches;
+};
+
+export const useBreakpoint = () => {
+  const isSm = useMediaQuery(createMediaQuery('sm').replace('@media ', ''));
+  const isMd = useMediaQuery(createMediaQuery('md').replace('@media ', ''));
+  const isLg = useMediaQuery(createMediaQuery('lg').replace('@media ', ''));
+  const isXl = useMediaQuery(createMediaQuery('xl').replace('@media ', ''));
+  const is2xl = useMediaQuery(createMediaQuery('2xl').replace('@media ', ''));
+  
+  return {
+    isSm,
+    isMd,
+    isLg,
+    isXl,
+    is2xl,
+    current: is2xl ? '2xl' : isXl ? 'xl' : isLg ? 'lg' : isMd ? 'md' : isSm ? 'sm' : 'xs'
+  };
+};
+```
+
+## 测试策略
+
+### 1. 单元测试
+
+```typescript
+// packages/core/src/components/Button/Button.test.tsx
+import React from 'react';
+import { render, screen, fireEvent } from '@testing-library/react';
+import { ThemeProvider } from 'styled-components';
+import { Button } from './Button';
+import { designTokens } from '../../tokens';
+
+const renderWithTheme = (component: React.ReactElement) => {
+  return render(
+    <ThemeProvider theme={designTokens}>
+      {component}
+    </ThemeProvider>
+  );
+};
+
+describe('Button', () => {
+  it('renders correctly', () => {
+    renderWithTheme(<Button>Click me</Button>);
+    expect(screen.getByRole('button', { name: 'Click me' })).toBeInTheDocument();
+  });
+  
+  it('handles click events', () => {
+    const handleClick = jest.fn();
+    renderWithTheme(<Button onClick={handleClick}>Click me</Button>);
+    
+    fireEvent.click(screen.getByRole('button'));
+    expect(handleClick).toHaveBeenCalledTimes(1);
+  });
+  
+  it('shows loading state', () => {
+    renderWithTheme(<Button loading>Loading</Button>);
+    
+    const button = screen.getByRole('button');
+    expect(button).toBeDisabled();
+    expect(button).toHaveStyle('pointer-events: none');
+  });
+  
+  it('renders with different variants', () => {
+    const { rerender } = renderWithTheme(<Button variant="primary">Primary</Button>);
+    expect(screen.getByRole('button')).toHaveStyle(`background-color: ${designTokens.colors.primary[500]}`);
+    
+    rerender(
+      <ThemeProvider theme={designTokens}>
+        <Button variant="secondary">Secondary</Button>
+      </ThemeProvider>
+    );
+    expect(screen.getByRole('button')).toHaveStyle(`background-color: ${designTokens.colors.gray[100]}`);
+  });
+  
+  it('renders with icons', () => {
+    const leftIcon = <span data-testid="left-icon">←</span>;
+    const rightIcon = <span data-testid="right-icon">→</span>;
+    
+    renderWithTheme(
+      <Button leftIcon={leftIcon} rightIcon={rightIcon}>
+        With Icons
+      </Button>
+    );
+    
+    expect(screen.getByTestId('left-icon')).toBeInTheDocument();
+    expect(screen.getByTestId('right-icon')).toBeInTheDocument();
+  });
+  
+  it('supports accessibility features', () => {
+    renderWithTheme(
+      <Button disabled aria-label="Disabled button">
+        Disabled
+      </Button>
+    );
+    
+    const button = screen.getByRole('button');
+    expect(button).toBeDisabled();
+    expect(button).toHaveAttribute('aria-label', 'Disabled button');
+  });
+});
+```
+
+### 2. 集成测试
+
+```typescript
+// packages/core/src/components/Modal/Modal.test.tsx
+import React, { useState } from 'react';
+import { render, screen, fireEvent } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { Modal } from './Modal';
+import { Button } from '../Button';
+
+const ModalTestComponent = () => {
+  const [open, setOpen] = useState(false);
+  
+  return (
+    <>
+      <Button onClick={() => setOpen(true)}>Open Modal</Button>
+      <Modal
+        open={open}
+        onClose={() => setOpen(false)}
+        title="Test Modal"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={() => setOpen(false)}>Confirm</Button>
+          </>
+        }
+      >
+        <p>Modal content</p>
+      </Modal>
+    </>
+  );
+};
+
+describe('Modal Integration', () => {
+  it('opens and closes modal correctly', async () => {
+    const user = userEvent.setup();
+    render(<ModalTestComponent />);
+    
+    // 初始状态：模态框不可见
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    
+    // 打开模态框
+    await user.click(screen.getByText('Open Modal'));
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(screen.getByText('Test Modal')).toBeInTheDocument();
+    expect(screen.getByText('Modal content')).toBeInTheDocument();
+    
+    // 关闭模态框
+    await user.click(screen.getByText('Cancel'));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+  
+  it('handles keyboard navigation', async () => {
+    const user = userEvent.setup();
+    render(<ModalTestComponent />);
+    
+    await user.click(screen.getByText('Open Modal'));
+    
+    // ESC键关闭
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+  
+  it('traps focus within modal', async () => {
+    const user = userEvent.setup();
+    render(<ModalTestComponent />);
+    
+    await user.click(screen.getByText('Open Modal'));
+    
+    const cancelButton = screen.getByText('Cancel');
+    const confirmButton = screen.getByText('Confirm');
+    const closeButton = screen.getByLabelText('关闭模态框');
+    
+    // Tab循环
+    await user.tab();
+    expect(closeButton).toHaveFocus();
+    
+    await user.tab();
+    expect(cancelButton).toHaveFocus();
+    
+    await user.tab();
+    expect(confirmButton).toHaveFocus();
+    
+    await user.tab();
+    expect(closeButton).toHaveFocus(); // 回到第一个元素
+  });
+});
+```
+
+## Storybook文档
+
+### 1. Button Stories
+
+```typescript
+// apps/storybook/src/stories/Button.stories.tsx
+import type { Meta, StoryObj } from '@storybook/react';
+import { Button } from '@my-ui/core';
+import { action } from '@storybook/addon-actions';
+
+const meta: Meta<typeof Button> = {
+  title: 'Components/Button',
+  component: Button,
+  parameters: {
+    layout: 'centered',
+    docs: {
+      description: {
+        component: '按钮组件用于触发操作和导航。支持多种变体、尺寸和状态。'
+      }
+    }
+  },
+  argTypes: {
+    variant: {
+      control: 'select',
+      options: ['primary', 'secondary', 'outline', 'ghost', 'danger'],
+      description: '按钮的视觉变体'
+    },
+    size: {
+      control: 'select',
+      options: ['sm', 'md', 'lg'],
+      description: '按钮的尺寸'
+    },
+    loading: {
+      control: 'boolean',
+      description: '是否显示加载状态'
+    },
+    disabled: {
+      control: 'boolean',
+      description: '是否禁用按钮'
+    },
+    fullWidth: {
+      control: 'boolean',
+      description: '是否占满容器宽度'
+    }
+  },
+  args: {
+    onClick: action('clicked')
+  }
+};
+
+export default meta;
+type Story = StoryObj<typeof meta>;
+
+export const Default: Story = {
+  args: {
+    children: 'Button'
+  }
+};
+
+export const Variants: Story = {
+  render: () => (
+    <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+      <Button variant="primary">Primary</Button>
+      <Button variant="secondary">Secondary</Button>
+      <Button variant="outline">Outline</Button>
+      <Button variant="ghost">Ghost</Button>
+      <Button variant="danger">Danger</Button>
+    </div>
+  ),
+  parameters: {
+    docs: {
+      description: {
+        story: '按钮支持多种视觉变体，适用于不同的使用场景。'
+      }
+    }
+  }
+};
+
+export const Sizes: Story = {
+  render: () => (
+    <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+      <Button size="sm">Small</Button>
+      <Button size="md">Medium</Button>
+      <Button size="lg">Large</Button>
+    </div>
+  )
+};
+
+export const WithIcons: Story = {
+  render: () => (
+    <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+      <Button leftIcon={<span>📁</span>}>With Left Icon</Button>
+      <Button rightIcon={<span>→</span>}>With Right Icon</Button>
+      <Button leftIcon={<span>📁</span>} rightIcon={<span>→</span>}>
+        With Both Icons
+      </Button>
+    </div>
+  )
+};
+
+export const States: Story = {
+  render: () => (
+    <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+      <Button>Normal</Button>
+      <Button loading>Loading</Button>
+      <Button disabled>Disabled</Button>
+    </div>
+  )
+};
+
+export const FullWidth: Story = {
+  render: () => (
+    <div style={{ width: '300px' }}>
+      <Button fullWidth>Full Width Button</Button>
+    </div>
+  )
+};
+```
+
+### 2. Storybook配置
+
+```typescript
+// apps/storybook/.storybook/main.ts
+import type { StorybookConfig } from '@storybook/react-vite';
+
+const config: StorybookConfig = {
+  stories: ['../src/**/*.stories.@(js|jsx|ts|tsx|mdx)'],
+  addons: [
+    '@storybook/addon-essentials',
+    '@storybook/addon-interactions',
+    '@storybook/addon-a11y',
+    '@storybook/addon-docs',
+    '@storybook/addon-controls',
+    '@storybook/addon-viewport'
+  ],
+  framework: {
+    name: '@storybook/react-vite',
+    options: {}
+  },
+  typescript: {
+    check: false,
+    reactDocgen: 'react-docgen-typescript',
+    reactDocgenTypescriptOptions: {
+      shouldExtractLiteralValuesFromEnum: true,
+      propFilter: (prop) => (prop.parent ? !/node_modules/.test(prop.parent.fileName) : true)
+    }
+  },
+  docs: {
+    autodocs: 'tag'
+  }
+};
+
+export default config;
+```
+
+## 构建与发布
+
+### 1. Rollup配置
+
+```javascript
+// packages/core/rollup.config.js
+import resolve from '@rollup/plugin-node-resolve';
+import commonjs from '@rollup/plugin-commonjs';
+import typescript from '@rollup/plugin-typescript';
+import { terser } from 'rollup-plugin-terser';
+import peerDepsExternal from 'rollup-plugin-peer-deps-external';
+import postcss from 'rollup-plugin-postcss';
+
+const packageJson = require('./package.json');
+
+export default {
+  input: 'src/index.ts',
+  output: [
+    {
+      file: packageJson.main,
+      format: 'cjs',
+      sourcemap: true
+    },
+    {
+      file: packageJson.module,
+      format: 'esm',
+      sourcemap: true
+    }
+  ],
+  plugins: [
+    peerDepsExternal(),
+    resolve({
+      browser: true
+    }),
+    commonjs(),
+    typescript({
+      tsconfig: './tsconfig.json',
+      exclude: ['**/*.test.tsx', '**/*.test.ts', '**/*.stories.tsx']
+    }),
+    postcss({
+      extract: false,
+      modules: false,
+      use: ['sass']
+    }),
+    terser()
+  ],
+  external: ['react', 'react-dom', 'styled-components']
+};
+```
+
+### 2. 发布脚本
+
+```json
+{
+  "scripts": {
+    "build": "rollup -c",
+    "build:watch": "rollup -c -w",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "lint": "eslint src --ext .ts,.tsx",
+    "lint:fix": "eslint src --ext .ts,.tsx --fix",
+    "type-check": "tsc --noEmit",
+    "storybook": "start-storybook -p 6006",
+    "build-storybook": "build-storybook",
+    "prepublishOnly": "npm run build",
+    "release": "semantic-release"
+  }
+}
+```
+
+### 3. CI/CD配置
+
+```yaml
+# .github/workflows/ci.yml
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        node-version: [16.x, 18.x]
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Run linting
+        run: npm run lint
+      
+      - name: Run type checking
+        run: npm run type-check
+      
+      - name: Run tests
+        run: npm run test:coverage
+      
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+      
+      - name: Build packages
+        run: npm run build
+      
+      - name: Build Storybook
+        run: npm run build-storybook
+      
+      - name: Visual regression testing
+        run: npx chromatic --project-token=${{ secrets.CHROMATIC_PROJECT_TOKEN }}
+        if: github.event_name == 'push'
+
+  release:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      
+      - name: Use Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18.x'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Build packages
+        run: npm run build
+      
+      - name: Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm run release
+```
+
+## 总结
+
+通过本文的详细介绍，我们完成了一个功能完整的React组件库的构建，涵盖了：
+
+### 核心特性
+1. **设计系统**：建立了完整的设计令牌体系
+2. **组件开发**：实现了可复用、可访问的组件
+3. **类型安全**：全面的TypeScript支持
+4. **测试覆盖**：单元测试和集成测试
+5. **文档生成**：Storybook交互式文档
+6. **构建优化**：现代化的构建和发布流程
+
+### 最佳实践
+1. **可访问性优先**：遵循WCAG指南
+2. **性能优化**：Tree-shaking和按需加载
+3. **开发体验**：完善的开发工具链
+4. **质量保证**：自动化测试和代码检查
+
+### 扩展方向
+1. **主题系统**：支持多主题切换
+2. **国际化**：多语言支持
+3. **移动端适配**：响应式设计
+4. **性能监控**：运行时性能分析
+
+构建组件库是一个持续迭代的过程，需要根据实际使用反馈不断优化和完善。通过建立完善的开发流程和质量保证机制，我们能够构建出高质量、易维护的组件库，为团队开发效率的提升奠定坚实基础。

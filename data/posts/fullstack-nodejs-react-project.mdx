@@ -1,0 +1,2480 @@
+---
+title: "全栈应用开发实战：Node.js + React构建现代Web应用"
+slug: "fullstack-nodejs-react-project"
+excerpt: "从零开始构建一个完整的全栈Web应用，包括后端API设计、前端界面开发、数据库设计、用户认证、部署上线等全流程实践。"
+date: "2024-03-09"
+published: true
+category: "实战项目"
+tags: ["Node.js", "React", "全栈开发"]
+author: "hailong"
+readingTime: 25
+---
+
+## 项目概述
+
+本文将带你构建一个完整的任务管理系统（Task Management System），涵盖用户注册登录、任务CRUD操作、团队协作、实时通知等功能。通过这个项目，你将掌握现代全栈开发的核心技能。
+
+### 技术栈选择
+
+**后端技术栈：**
+- Node.js + Express.js（服务器框架）
+- MongoDB + Mongoose（数据库）
+- JWT（身份认证）
+- Socket.io（实时通信）
+- Multer（文件上传）
+- Nodemailer（邮件服务）
+
+**前端技术栈：**
+- React 18 + TypeScript
+- React Router（路由管理）
+- React Query（状态管理）
+- Ant Design（UI组件库）
+- Axios（HTTP客户端）
+- Socket.io-client（实时通信）
+
+**开发工具：**
+- Docker（容器化）
+- Jest（测试框架）
+- ESLint + Prettier（代码规范）
+- GitHub Actions（CI/CD）
+
+## 项目架构设计
+
+### 1. 整体架构
+
+```
+task-management-system/
+├── backend/                  # 后端服务
+│   ├── src/
+│   │   ├── controllers/      # 控制器
+│   │   ├── models/          # 数据模型
+│   │   ├── routes/          # 路由定义
+│   │   ├── middleware/      # 中间件
+│   │   ├── services/        # 业务逻辑
+│   │   ├── utils/           # 工具函数
+│   │   ├── config/          # 配置文件
+│   │   └── app.js           # 应用入口
+│   ├── tests/               # 测试文件
+│   ├── package.json
+│   └── Dockerfile
+├── frontend/                # 前端应用
+│   ├── src/
+│   │   ├── components/      # 组件
+│   │   ├── pages/           # 页面
+│   │   ├── hooks/           # 自定义Hooks
+│   │   ├── services/        # API服务
+│   │   ├── utils/           # 工具函数
+│   │   ├── types/           # 类型定义
+│   │   └── App.tsx          # 应用入口
+│   ├── public/
+│   ├── package.json
+│   └── Dockerfile
+├── docker-compose.yml       # Docker编排
+├── .github/workflows/       # CI/CD配置
+└── README.md
+```
+
+### 2. 数据库设计
+
+```javascript
+// backend/src/models/User.js
+const mongoose = require('mongoose');
+const bcrypt = require('bcryptjs');
+
+const userSchema = new mongoose.Schema({
+  username: {
+    type: String,
+    required: true,
+    unique: true,
+    trim: true,
+    minlength: 3,
+    maxlength: 30
+  },
+  email: {
+    type: String,
+    required: true,
+    unique: true,
+    lowercase: true,
+    validate: {
+      validator: function(email) {
+        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+      },
+      message: '请输入有效的邮箱地址'
+    }
+  },
+  password: {
+    type: String,
+    required: true,
+    minlength: 6
+  },
+  avatar: {
+    type: String,
+    default: ''
+  },
+  role: {
+    type: String,
+    enum: ['user', 'admin'],
+    default: 'user'
+  },
+  isEmailVerified: {
+    type: Boolean,
+    default: false
+  },
+  emailVerificationToken: String,
+  passwordResetToken: String,
+  passwordResetExpires: Date,
+  lastLoginAt: Date,
+  isActive: {
+    type: Boolean,
+    default: true
+  }
+}, {
+  timestamps: true
+});
+
+// 密码加密中间件
+userSchema.pre('save', async function(next) {
+  if (!this.isModified('password')) return next();
+  
+  try {
+    const salt = await bcrypt.genSalt(12);
+    this.password = await bcrypt.hash(this.password, salt);
+    next();
+  } catch (error) {
+    next(error);
+  }
+});
+
+// 密码验证方法
+userSchema.methods.comparePassword = async function(candidatePassword) {
+  return bcrypt.compare(candidatePassword, this.password);
+};
+
+// 生成JWT Token
+userSchema.methods.generateAuthToken = function() {
+  const jwt = require('jsonwebtoken');
+  return jwt.sign(
+    { 
+      userId: this._id, 
+      username: this.username,
+      role: this.role 
+    },
+    process.env.JWT_SECRET,
+    { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
+  );
+};
+
+// 隐藏敏感信息
+userSchema.methods.toJSON = function() {
+  const user = this.toObject();
+  delete user.password;
+  delete user.emailVerificationToken;
+  delete user.passwordResetToken;
+  delete user.passwordResetExpires;
+  return user;
+};
+
+module.exports = mongoose.model('User', userSchema);
+```
+
+```javascript
+// backend/src/models/Task.js
+const mongoose = require('mongoose');
+
+const taskSchema = new mongoose.Schema({
+  title: {
+    type: String,
+    required: true,
+    trim: true,
+    maxlength: 200
+  },
+  description: {
+    type: String,
+    trim: true,
+    maxlength: 2000
+  },
+  status: {
+    type: String,
+    enum: ['todo', 'in-progress', 'review', 'done'],
+    default: 'todo'
+  },
+  priority: {
+    type: String,
+    enum: ['low', 'medium', 'high', 'urgent'],
+    default: 'medium'
+  },
+  assignee: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
+  creator: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  project: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Project',
+    required: true
+  },
+  dueDate: Date,
+  tags: [{
+    type: String,
+    trim: true
+  }],
+  attachments: [{
+    filename: String,
+    originalName: String,
+    mimetype: String,
+    size: Number,
+    url: String,
+    uploadedAt: {
+      type: Date,
+      default: Date.now
+    }
+  }],
+  comments: [{
+    author: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true
+    },
+    content: {
+      type: String,
+      required: true,
+      maxlength: 1000
+    },
+    createdAt: {
+      type: Date,
+      default: Date.now
+    }
+  }],
+  timeTracking: {
+    estimated: Number, // 预估时间（小时）
+    logged: Number,    // 已记录时间（小时）
+    sessions: [{
+      startTime: Date,
+      endTime: Date,
+      duration: Number, // 分钟
+      description: String
+    }]
+  },
+  isArchived: {
+    type: Boolean,
+    default: false
+  }
+}, {
+  timestamps: true
+});
+
+// 索引优化
+taskSchema.index({ project: 1, status: 1 });
+taskSchema.index({ assignee: 1, dueDate: 1 });
+taskSchema.index({ creator: 1, createdAt: -1 });
+taskSchema.index({ title: 'text', description: 'text' });
+
+// 虚拟字段：是否逾期
+taskSchema.virtual('isOverdue').get(function() {
+  return this.dueDate && this.dueDate < new Date() && this.status !== 'done';
+});
+
+// 中间件：更新项目的任务统计
+taskSchema.post('save', async function() {
+  const Project = mongoose.model('Project');
+  await Project.updateTaskStats(this.project);
+});
+
+taskSchema.post('remove', async function() {
+  const Project = mongoose.model('Project');
+  await Project.updateTaskStats(this.project);
+});
+
+module.exports = mongoose.model('Task', taskSchema);
+```
+
+```javascript
+// backend/src/models/Project.js
+const mongoose = require('mongoose');
+
+const projectSchema = new mongoose.Schema({
+  name: {
+    type: String,
+    required: true,
+    trim: true,
+    maxlength: 100
+  },
+  description: {
+    type: String,
+    trim: true,
+    maxlength: 1000
+  },
+  owner: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  members: [{
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    },
+    role: {
+      type: String,
+      enum: ['member', 'manager', 'viewer'],
+      default: 'member'
+    },
+    joinedAt: {
+      type: Date,
+      default: Date.now
+    }
+  }],
+  status: {
+    type: String,
+    enum: ['planning', 'active', 'on-hold', 'completed', 'cancelled'],
+    default: 'planning'
+  },
+  startDate: Date,
+  endDate: Date,
+  color: {
+    type: String,
+    default: '#1890ff'
+  },
+  isPublic: {
+    type: Boolean,
+    default: false
+  },
+  settings: {
+    allowGuestComments: {
+      type: Boolean,
+      default: false
+    },
+    requireApproval: {
+      type: Boolean,
+      default: false
+    },
+    emailNotifications: {
+      type: Boolean,
+      default: true
+    }
+  },
+  stats: {
+    totalTasks: {
+      type: Number,
+      default: 0
+    },
+    completedTasks: {
+      type: Number,
+      default: 0
+    },
+    overdueTasks: {
+      type: Number,
+      default: 0
+    }
+  }
+}, {
+  timestamps: true
+});
+
+// 更新任务统计
+projectSchema.statics.updateTaskStats = async function(projectId) {
+  const Task = mongoose.model('Task');
+  
+  const stats = await Task.aggregate([
+    { $match: { project: projectId, isArchived: false } },
+    {
+      $group: {
+        _id: null,
+        totalTasks: { $sum: 1 },
+        completedTasks: {
+          $sum: { $cond: [{ $eq: ['$status', 'done'] }, 1, 0] }
+        },
+        overdueTasks: {
+          $sum: {
+            $cond: [
+              {
+                $and: [
+                  { $lt: ['$dueDate', new Date()] },
+                  { $ne: ['$status', 'done'] },
+                  { $ne: ['$dueDate', null] }
+                ]
+              },
+              1,
+              0
+            ]
+          }
+        }
+      }
+    }
+  ]);
+  
+  const projectStats = stats[0] || {
+    totalTasks: 0,
+    completedTasks: 0,
+    overdueTasks: 0
+  };
+  
+  await this.findByIdAndUpdate(projectId, { stats: projectStats });
+};
+
+// 检查用户权限
+projectSchema.methods.hasPermission = function(userId, action) {
+  // 项目所有者拥有所有权限
+  if (this.owner.toString() === userId.toString()) {
+    return true;
+  }
+  
+  const member = this.members.find(m => m.user.toString() === userId.toString());
+  if (!member) return false;
+  
+  switch (action) {
+    case 'read':
+      return true;
+    case 'write':
+      return ['member', 'manager'].includes(member.role);
+    case 'manage':
+      return member.role === 'manager';
+    default:
+      return false;
+  }
+};
+
+module.exports = mongoose.model('Project', projectSchema);
+```
+
+## 后端API开发
+
+### 1. 用户认证系统
+
+```javascript
+// backend/src/controllers/authController.js
+const User = require('../models/User');
+const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
+const { sendEmail } = require('../services/emailService');
+const { validationResult } = require('express-validator');
+
+class AuthController {
+  // 用户注册
+  async register(req, res) {
+    try {
+      // 验证输入
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({
+          success: false,
+          message: '输入验证失败',
+          errors: errors.array()
+        });
+      }
+
+      const { username, email, password } = req.body;
+
+      // 检查用户是否已存在
+      const existingUser = await User.findOne({
+        $or: [{ email }, { username }]
+      });
+
+      if (existingUser) {
+        return res.status(409).json({
+          success: false,
+          message: '用户名或邮箱已存在'
+        });
+      }
+
+      // 创建新用户
+      const emailVerificationToken = crypto.randomBytes(32).toString('hex');
+      const user = new User({
+        username,
+        email,
+        password,
+        emailVerificationToken
+      });
+
+      await user.save();
+
+      // 发送验证邮件
+      await sendEmail({
+        to: email,
+        subject: '验证您的邮箱地址',
+        template: 'email-verification',
+        data: {
+          username,
+          verificationUrl: `${process.env.FRONTEND_URL}/verify-email?token=${emailVerificationToken}`
+        }
+      });
+
+      // 生成JWT Token
+      const token = user.generateAuthToken();
+
+      res.status(201).json({
+        success: true,
+        message: '注册成功，请检查邮箱进行验证',
+        data: {
+          user,
+          token
+        }
+      });
+    } catch (error) {
+      console.error('注册错误:', error);
+      res.status(500).json({
+        success: false,
+        message: '服务器内部错误'
+      });
+    }
+  }
+
+  // 用户登录
+  async login(req, res) {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({
+          success: false,
+          message: '输入验证失败',
+          errors: errors.array()
+        });
+      }
+
+      const { email, password } = req.body;
+
+      // 查找用户
+      const user = await User.findOne({ email }).select('+password');
+      if (!user) {
+        return res.status(401).json({
+          success: false,
+          message: '邮箱或密码错误'
+        });
+      }
+
+      // 验证密码
+      const isPasswordValid = await user.comparePassword(password);
+      if (!isPasswordValid) {
+        return res.status(401).json({
+          success: false,
+          message: '邮箱或密码错误'
+        });
+      }
+
+      // 检查账户状态
+      if (!user.isActive) {
+        return res.status(403).json({
+          success: false,
+          message: '账户已被禁用'
+        });
+      }
+
+      // 更新最后登录时间
+      user.lastLoginAt = new Date();
+      await user.save();
+
+      // 生成JWT Token
+      const token = user.generateAuthToken();
+
+      res.json({
+        success: true,
+        message: '登录成功',
+        data: {
+          user,
+          token
+        }
+      });
+    } catch (error) {
+      console.error('登录错误:', error);
+      res.status(500).json({
+        success: false,
+        message: '服务器内部错误'
+      });
+    }
+  }
+
+  // 邮箱验证
+  async verifyEmail(req, res) {
+    try {
+      const { token } = req.params;
+
+      const user = await User.findOne({ emailVerificationToken: token });
+      if (!user) {
+        return res.status(400).json({
+          success: false,
+          message: '无效的验证令牌'
+        });
+      }
+
+      user.isEmailVerified = true;
+      user.emailVerificationToken = undefined;
+      await user.save();
+
+      res.json({
+        success: true,
+        message: '邮箱验证成功'
+      });
+    } catch (error) {
+      console.error('邮箱验证错误:', error);
+      res.status(500).json({
+        success: false,
+        message: '服务器内部错误'
+      });
+    }
+  }
+
+  // 忘记密码
+  async forgotPassword(req, res) {
+    try {
+      const { email } = req.body;
+
+      const user = await User.findOne({ email });
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: '用户不存在'
+        });
+      }
+
+      // 生成重置令牌
+      const resetToken = crypto.randomBytes(32).toString('hex');
+      user.passwordResetToken = resetToken;
+      user.passwordResetExpires = Date.now() + 10 * 60 * 1000; // 10分钟有效期
+      await user.save();
+
+      // 发送重置邮件
+      await sendEmail({
+        to: email,
+        subject: '重置您的密码',
+        template: 'password-reset',
+        data: {
+          username: user.username,
+          resetUrl: `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`
+        }
+      });
+
+      res.json({
+        success: true,
+        message: '密码重置邮件已发送'
+      });
+    } catch (error) {
+      console.error('忘记密码错误:', error);
+      res.status(500).json({
+        success: false,
+        message: '服务器内部错误'
+      });
+    }
+  }
+
+  // 重置密码
+  async resetPassword(req, res) {
+    try {
+      const { token, newPassword } = req.body;
+
+      const user = await User.findOne({
+        passwordResetToken: token,
+        passwordResetExpires: { $gt: Date.now() }
+      });
+
+      if (!user) {
+        return res.status(400).json({
+          success: false,
+          message: '无效或已过期的重置令牌'
+        });
+      }
+
+      user.password = newPassword;
+      user.passwordResetToken = undefined;
+      user.passwordResetExpires = undefined;
+      await user.save();
+
+      res.json({
+        success: true,
+        message: '密码重置成功'
+      });
+    } catch (error) {
+      console.error('重置密码错误:', error);
+      res.status(500).json({
+        success: false,
+        message: '服务器内部错误'
+      });
+    }
+  }
+
+  // 获取当前用户信息
+  async getCurrentUser(req, res) {
+    try {
+      const user = await User.findById(req.user.userId)
+        .populate('projects', 'name description')
+        .populate('assignedTasks', 'title status priority dueDate');
+
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: '用户不存在'
+        });
+      }
+
+      res.json({
+        success: true,
+        data: { user }
+      });
+    } catch (error) {
+      console.error('获取用户信息错误:', error);
+      res.status(500).json({
+        success: false,
+        message: '服务器内部错误'
+      });
+    }
+  }
+
+  // 更新用户资料
+  async updateProfile(req, res) {
+    try {
+      const { username, avatar } = req.body;
+      const userId = req.user.userId;
+
+      const updateData = {};
+      if (username) updateData.username = username;
+      if (avatar) updateData.avatar = avatar;
+
+      const user = await User.findByIdAndUpdate(
+        userId,
+        updateData,
+        { new: true, runValidators: true }
+      );
+
+      res.json({
+        success: true,
+        message: '资料更新成功',
+        data: { user }
+      });
+    } catch (error) {
+      console.error('更新资料错误:', error);
+      res.status(500).json({
+        success: false,
+        message: '服务器内部错误'
+      });
+    }
+  }
+}
+
+module.exports = new AuthController();
+```
+
+### 2. 任务管理API
+
+```javascript
+// backend/src/controllers/taskController.js
+const Task = require('../models/Task');
+const Project = require('../models/Project');
+const { validationResult } = require('express-validator');
+const { io } = require('../app');
+
+class TaskController {
+  // 创建任务
+  async createTask(req, res) {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({
+          success: false,
+          message: '输入验证失败',
+          errors: errors.array()
+        });
+      }
+
+      const { title, description, projectId, assigneeId, priority, dueDate, tags } = req.body;
+      const creatorId = req.user.userId;
+
+      // 验证项目权限
+      const project = await Project.findById(projectId);
+      if (!project) {
+        return res.status(404).json({
+          success: false,
+          message: '项目不存在'
+        });
+      }
+
+      if (!project.hasPermission(creatorId, 'write')) {
+        return res.status(403).json({
+          success: false,
+          message: '没有权限在此项目中创建任务'
+        });
+      }
+
+      // 创建任务
+      const task = new Task({
+        title,
+        description,
+        project: projectId,
+        creator: creatorId,
+        assignee: assigneeId,
+        priority,
+        dueDate,
+        tags
+      });
+
+      await task.save();
+      await task.populate([
+        { path: 'creator', select: 'username avatar' },
+        { path: 'assignee', select: 'username avatar' },
+        { path: 'project', select: 'name' }
+      ]);
+
+      // 实时通知
+      io.to(`project_${projectId}`).emit('taskCreated', {
+        task,
+        creator: req.user
+      });
+
+      res.status(201).json({
+        success: true,
+        message: '任务创建成功',
+        data: { task }
+      });
+    } catch (error) {
+      console.error('创建任务错误:', error);
+      res.status(500).json({
+        success: false,
+        message: '服务器内部错误'
+      });
+    }
+  }
+
+  // 获取任务列表
+  async getTasks(req, res) {
+    try {
+      const {
+        projectId,
+        status,
+        priority,
+        assignee,
+        page = 1,
+        limit = 20,
+        sortBy = 'createdAt',
+        sortOrder = 'desc',
+        search
+      } = req.query;
+
+      // 构建查询条件
+      const query = { isArchived: false };
+      
+      if (projectId) {
+        // 验证项目权限
+        const project = await Project.findById(projectId);
+        if (!project || !project.hasPermission(req.user.userId, 'read')) {
+          return res.status(403).json({
+            success: false,
+            message: '没有权限访问此项目的任务'
+          });
+        }
+        query.project = projectId;
+      } else {
+        // 获取用户有权限的项目
+        const userProjects = await Project.find({
+          $or: [
+            { owner: req.user.userId },
+            { 'members.user': req.user.userId }
+          ]
+        }).select('_id');
+        query.project = { $in: userProjects.map(p => p._id) };
+      }
+
+      if (status) query.status = status;
+      if (priority) query.priority = priority;
+      if (assignee) query.assignee = assignee;
+      if (search) {
+        query.$text = { $search: search };
+      }
+
+      // 分页和排序
+      const skip = (page - 1) * limit;
+      const sort = { [sortBy]: sortOrder === 'desc' ? -1 : 1 };
+
+      const [tasks, total] = await Promise.all([
+        Task.find(query)
+          .populate('creator', 'username avatar')
+          .populate('assignee', 'username avatar')
+          .populate('project', 'name color')
+          .sort(sort)
+          .skip(skip)
+          .limit(parseInt(limit)),
+        Task.countDocuments(query)
+      ]);
+
+      res.json({
+        success: true,
+        data: {
+          tasks,
+          pagination: {
+            current: parseInt(page),
+            pageSize: parseInt(limit),
+            total,
+            totalPages: Math.ceil(total / limit)
+          }
+        }
+      });
+    } catch (error) {
+      console.error('获取任务列表错误:', error);
+      res.status(500).json({
+        success: false,
+        message: '服务器内部错误'
+      });
+    }
+  }
+
+  // 获取任务详情
+  async getTaskById(req, res) {
+    try {
+      const { taskId } = req.params;
+
+      const task = await Task.findById(taskId)
+        .populate('creator', 'username avatar')
+        .populate('assignee', 'username avatar')
+        .populate('project', 'name color members')
+        .populate('comments.author', 'username avatar');
+
+      if (!task) {
+        return res.status(404).json({
+          success: false,
+          message: '任务不存在'
+        });
+      }
+
+      // 验证权限
+      if (!task.project.hasPermission(req.user.userId, 'read')) {
+        return res.status(403).json({
+          success: false,
+          message: '没有权限访问此任务'
+        });
+      }
+
+      res.json({
+        success: true,
+        data: { task }
+      });
+    } catch (error) {
+      console.error('获取任务详情错误:', error);
+      res.status(500).json({
+        success: false,
+        message: '服务器内部错误'
+      });
+    }
+  }
+
+  // 更新任务
+  async updateTask(req, res) {
+    try {
+      const { taskId } = req.params;
+      const updates = req.body;
+      const userId = req.user.userId;
+
+      const task = await Task.findById(taskId).populate('project');
+      if (!task) {
+        return res.status(404).json({
+          success: false,
+          message: '任务不存在'
+        });
+      }
+
+      // 验证权限
+      if (!task.project.hasPermission(userId, 'write')) {
+        return res.status(403).json({
+          success: false,
+          message: '没有权限修改此任务'
+        });
+      }
+
+      // 记录状态变更
+      const oldStatus = task.status;
+      const newStatus = updates.status;
+
+      // 更新任务
+      Object.assign(task, updates);
+      await task.save();
+
+      await task.populate([
+        { path: 'creator', select: 'username avatar' },
+        { path: 'assignee', select: 'username avatar' },
+        { path: 'project', select: 'name' }
+      ]);
+
+      // 实时通知状态变更
+      if (oldStatus !== newStatus) {
+        io.to(`project_${task.project._id}`).emit('taskStatusChanged', {
+          taskId: task._id,
+          oldStatus,
+          newStatus,
+          updatedBy: req.user
+        });
+      }
+
+      res.json({
+        success: true,
+        message: '任务更新成功',
+        data: { task }
+      });
+    } catch (error) {
+      console.error('更新任务错误:', error);
+      res.status(500).json({
+        success: false,
+        message: '服务器内部错误'
+      });
+    }
+  }
+
+  // 删除任务
+  async deleteTask(req, res) {
+    try {
+      const { taskId } = req.params;
+      const userId = req.user.userId;
+
+      const task = await Task.findById(taskId).populate('project');
+      if (!task) {
+        return res.status(404).json({
+          success: false,
+          message: '任务不存在'
+        });
+      }
+
+      // 验证权限（只有创建者或项目管理员可以删除）
+      const isCreator = task.creator.toString() === userId;
+      const isProjectManager = task.project.hasPermission(userId, 'manage');
+      
+      if (!isCreator && !isProjectManager) {
+        return res.status(403).json({
+          success: false,
+          message: '没有权限删除此任务'
+        });
+      }
+
+      await task.remove();
+
+      // 实时通知
+      io.to(`project_${task.project._id}`).emit('taskDeleted', {
+        taskId: task._id,
+        deletedBy: req.user
+      });
+
+      res.json({
+        success: true,
+        message: '任务删除成功'
+      });
+    } catch (error) {
+      console.error('删除任务错误:', error);
+      res.status(500).json({
+        success: false,
+        message: '服务器内部错误'
+      });
+    }
+  }
+
+  // 添加评论
+  async addComment(req, res) {
+    try {
+      const { taskId } = req.params;
+      const { content } = req.body;
+      const userId = req.user.userId;
+
+      const task = await Task.findById(taskId).populate('project');
+      if (!task) {
+        return res.status(404).json({
+          success: false,
+          message: '任务不存在'
+        });
+      }
+
+      // 验证权限
+      if (!task.project.hasPermission(userId, 'read')) {
+        return res.status(403).json({
+          success: false,
+          message: '没有权限评论此任务'
+        });
+      }
+
+      const comment = {
+        author: userId,
+        content,
+        createdAt: new Date()
+      };
+
+      task.comments.push(comment);
+      await task.save();
+
+      await task.populate('comments.author', 'username avatar');
+      const newComment = task.comments[task.comments.length - 1];
+
+      // 实时通知
+      io.to(`project_${task.project._id}`).emit('commentAdded', {
+        taskId: task._id,
+        comment: newComment
+      });
+
+      res.status(201).json({
+        success: true,
+        message: '评论添加成功',
+        data: { comment: newComment }
+      });
+    } catch (error) {
+      console.error('添加评论错误:', error);
+      res.status(500).json({
+        success: false,
+        message: '服务器内部错误'
+      });
+    }
+  }
+
+  // 时间追踪
+  async startTimeTracking(req, res) {
+    try {
+      const { taskId } = req.params;
+      const { description } = req.body;
+      const userId = req.user.userId;
+
+      const task = await Task.findById(taskId);
+      if (!task) {
+        return res.status(404).json({
+          success: false,
+          message: '任务不存在'
+        });
+      }
+
+      // 只有任务分配者可以记录时间
+      if (task.assignee.toString() !== userId) {
+        return res.status(403).json({
+          success: false,
+          message: '只有任务分配者可以记录时间'
+        });
+      }
+
+      const session = {
+        startTime: new Date(),
+        description
+      };
+
+      task.timeTracking.sessions.push(session);
+      await task.save();
+
+      res.json({
+        success: true,
+        message: '时间追踪已开始',
+        data: { sessionId: session._id }
+      });
+    } catch (error) {
+      console.error('开始时间追踪错误:', error);
+      res.status(500).json({
+        success: false,
+        message: '服务器内部错误'
+      });
+    }
+  }
+
+  // 停止时间追踪
+  async stopTimeTracking(req, res) {
+    try {
+      const { taskId, sessionId } = req.params;
+      const userId = req.user.userId;
+
+      const task = await Task.findById(taskId);
+      if (!task) {
+        return res.status(404).json({
+          success: false,
+          message: '任务不存在'
+        });
+      }
+
+      if (task.assignee.toString() !== userId) {
+        return res.status(403).json({
+          success: false,
+          message: '只有任务分配者可以记录时间'
+        });
+      }
+
+      const session = task.timeTracking.sessions.id(sessionId);
+      if (!session) {
+        return res.status(404).json({
+          success: false,
+          message: '时间追踪会话不存在'
+        });
+      }
+
+      session.endTime = new Date();
+      session.duration = Math.round((session.endTime - session.startTime) / 60000); // 分钟
+
+      // 更新总记录时间
+      const totalMinutes = task.timeTracking.sessions.reduce((sum, s) => {
+        return sum + (s.duration || 0);
+      }, 0);
+      task.timeTracking.logged = Math.round(totalMinutes / 60 * 100) / 100; // 小时，保留两位小数
+
+      await task.save();
+
+      res.json({
+        success: true,
+        message: '时间追踪已停止',
+        data: {
+          duration: session.duration,
+          totalLogged: task.timeTracking.logged
+        }
+      });
+    } catch (error) {
+      console.error('停止时间追踪错误:', error);
+      res.status(500).json({
+        success: false,
+        message: '服务器内部错误'
+      });
+    }
+  }
+}
+
+module.exports = new TaskController();
+```
+
+### 3. 中间件实现
+
+```javascript
+// backend/src/middleware/auth.js
+const jwt = require('jsonwebtoken');
+const User = require('../models/User');
+
+const authMiddleware = async (req, res, next) => {
+  try {
+    const token = req.header('Authorization')?.replace('Bearer ', '');
+    
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: '访问令牌缺失'
+      });
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const user = await User.findById(decoded.userId);
+    
+    if (!user || !user.isActive) {
+      return res.status(401).json({
+        success: false,
+        message: '无效的访问令牌'
+      });
+    }
+
+    req.user = {
+      userId: user._id,
+      username: user.username,
+      email: user.email,
+      role: user.role
+    };
+    
+    next();
+  } catch (error) {
+    console.error('认证中间件错误:', error);
+    res.status(401).json({
+      success: false,
+      message: '无效的访问令牌'
+    });
+  }
+};
+
+module.exports = authMiddleware;
+```
+
+```javascript
+// backend/src/middleware/validation.js
+const { body, param, query } = require('express-validator');
+
+const validationRules = {
+  // 用户注册验证
+  register: [
+    body('username')
+      .isLength({ min: 3, max: 30 })
+      .withMessage('用户名长度必须在3-30个字符之间')
+      .matches(/^[a-zA-Z0-9_]+$/)
+      .withMessage('用户名只能包含字母、数字和下划线'),
+    body('email')
+      .isEmail()
+      .withMessage('请输入有效的邮箱地址')
+      .normalizeEmail(),
+    body('password')
+      .isLength({ min: 6 })
+      .withMessage('密码长度至少6个字符')
+      .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
+      .withMessage('密码必须包含大小写字母和数字')
+  ],
+
+  // 用户登录验证
+  login: [
+    body('email')
+      .isEmail()
+      .withMessage('请输入有效的邮箱地址')
+      .normalizeEmail(),
+    body('password')
+      .notEmpty()
+      .withMessage('密码不能为空')
+  ],
+
+  // 创建任务验证
+  createTask: [
+    body('title')
+      .isLength({ min: 1, max: 200 })
+      .withMessage('任务标题长度必须在1-200个字符之间')
+      .trim(),
+    body('description')
+      .optional()
+      .isLength({ max: 2000 })
+      .withMessage('任务描述不能超过2000个字符')
+      .trim(),
+    body('projectId')
+      .isMongoId()
+      .withMessage('无效的项目ID'),
+    body('priority')
+      .optional()
+      .isIn(['low', 'medium', 'high', 'urgent'])
+      .withMessage('无效的优先级'),
+    body('dueDate')
+      .optional()
+      .isISO8601()
+      .withMessage('无效的截止日期格式')
+  ],
+
+  // 更新任务验证
+  updateTask: [
+    param('taskId')
+      .isMongoId()
+      .withMessage('无效的任务ID'),
+    body('title')
+      .optional()
+      .isLength({ min: 1, max: 200 })
+      .withMessage('任务标题长度必须在1-200个字符之间')
+      .trim(),
+    body('status')
+      .optional()
+      .isIn(['todo', 'in-progress', 'review', 'done'])
+      .withMessage('无效的任务状态'),
+    body('priority')
+      .optional()
+      .isIn(['low', 'medium', 'high', 'urgent'])
+      .withMessage('无效的优先级')
+  ],
+
+  // 创建项目验证
+  createProject: [
+    body('name')
+      .isLength({ min: 1, max: 100 })
+      .withMessage('项目名称长度必须在1-100个字符之间')
+      .trim(),
+    body('description')
+      .optional()
+      .isLength({ max: 1000 })
+      .withMessage('项目描述不能超过1000个字符')
+      .trim()
+  ],
+
+  // 分页查询验证
+  pagination: [
+    query('page')
+      .optional()
+      .isInt({ min: 1 })
+      .withMessage('页码必须是大于0的整数'),
+    query('limit')
+      .optional()
+      .isInt({ min: 1, max: 100 })
+      .withMessage('每页数量必须在1-100之间')
+  ]
+};
+
+module.exports = validationRules;
+```
+
+## 前端React应用开发
+
+### 1. 项目结构与配置
+
+```typescript
+// frontend/src/types/index.ts
+export interface User {
+  _id: string;
+  username: string;
+  email: string;
+  avatar?: string;
+  role: 'user' | 'admin';
+  isEmailVerified: boolean;
+  lastLoginAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Project {
+  _id: string;
+  name: string;
+  description?: string;
+  owner: User;
+  members: ProjectMember[];
+  status: 'planning' | 'active' | 'on-hold' | 'completed' | 'cancelled';
+  startDate?: string;
+  endDate?: string;
+  color: string;
+  isPublic: boolean;
+  stats: {
+    totalTasks: number;
+    completedTasks: number;
+    overdueTasks: number;
+  };
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProjectMember {
+  user: User;
+  role: 'member' | 'manager' | 'viewer';
+  joinedAt: string;
+}
+
+export interface Task {
+  _id: string;
+  title: string;
+  description?: string;
+  status: 'todo' | 'in-progress' | 'review' | 'done';
+  priority: 'low' | 'medium' | 'high' | 'urgent';
+  assignee?: User;
+  creator: User;
+  project: Project;
+  dueDate?: string;
+  tags: string[];
+  attachments: Attachment[];
+  comments: Comment[];
+  timeTracking: {
+    estimated?: number;
+    logged?: number;
+    sessions: TimeSession[];
+  };
+  isArchived: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Comment {
+  _id: string;
+  author: User;
+  content: string;
+  createdAt: string;
+}
+
+export interface Attachment {
+  _id: string;
+  filename: string;
+  originalName: string;
+  mimetype: string;
+  size: number;
+  url: string;
+  uploadedAt: string;
+}
+
+export interface TimeSession {
+  _id: string;
+  startTime: string;
+  endTime?: string;
+  duration?: number;
+  description?: string;
+}
+
+export interface ApiResponse<T = any> {
+  success: boolean;
+  message: string;
+  data?: T;
+  errors?: any[];
+}
+
+export interface PaginationParams {
+  page?: number;
+  limit?: number;
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
+}
+
+export interface TaskFilters extends PaginationParams {
+  projectId?: string;
+  status?: string;
+  priority?: string;
+  assignee?: string;
+  search?: string;
+}
+```
+
+### 2. API服务层
+
+```typescript
+// frontend/src/services/api.ts
+import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
+import { message } from 'antd';
+
+class ApiService {
+  private instance: AxiosInstance;
+
+  constructor() {
+    this.instance = axios.create({
+      baseURL: process.env.REACT_APP_API_URL || 'http://localhost:3001/api',
+      timeout: 10000,
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+
+    this.setupInterceptors();
+  }
+
+  private setupInterceptors() {
+    // 请求拦截器
+    this.instance.interceptors.request.use(
+      (config) => {
+        const token = localStorage.getItem('token');
+        if (token) {
+          config.headers.Authorization = `Bearer ${token}`;
+        }
+        return config;
+      },
+      (error) => {
+        return Promise.reject(error);
+      }
+    );
+
+    // 响应拦截器
+    this.instance.interceptors.response.use(
+      (response) => {
+        return response.data;
+      },
+      (error) => {
+        const { response } = error;
+        
+        if (response?.status === 401) {
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          window.location.href = '/login';
+          message.error('登录已过期，请重新登录');
+        } else if (response?.status === 403) {
+          message.error('没有权限执行此操作');
+        } else if (response?.status >= 500) {
+          message.error('服务器错误，请稍后重试');
+        } else if (response?.data?.message) {
+          message.error(response.data.message);
+        } else {
+          message.error('网络错误，请检查网络连接');
+        }
+        
+        return Promise.reject(error);
+      }
+    );
+  }
+
+  // 通用请求方法
+  async request<T = any>(config: AxiosRequestConfig): Promise<T> {
+    return this.instance.request(config);
+  }
+
+  async get<T = any>(url: string, config?: AxiosRequestConfig): Promise<T> {
+    return this.instance.get(url, config);
+  }
+
+  async post<T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> {
+    return this.instance.post(url, data, config);
+  }
+
+  async put<T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> {
+    return this.instance.put(url, data, config);
+  }
+
+  async patch<T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> {
+    return this.instance.patch(url, data, config);
+  }
+
+  async delete<T = any>(url: string, config?: AxiosRequestConfig): Promise<T> {
+    return this.instance.delete(url, config);
+  }
+
+  // 文件上传
+  async upload<T = any>(url: string, file: File, onProgress?: (progress: number) => void): Promise<T> {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    return this.instance.post(url, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      },
+      onUploadProgress: (progressEvent) => {
+        if (onProgress && progressEvent.total) {
+          const progress = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          onProgress(progress);
+        }
+      }
+    });
+  }
+}
+
+export const apiService = new ApiService();
+```
+
+```typescript
+// frontend/src/services/authService.ts
+import { apiService } from './api';
+import { User, ApiResponse } from '../types';
+
+export interface LoginCredentials {
+  email: string;
+  password: string;
+}
+
+export interface RegisterData {
+  username: string;
+  email: string;
+  password: string;
+}
+
+export interface AuthResponse {
+  user: User;
+  token: string;
+}
+
+class AuthService {
+  async login(credentials: LoginCredentials): Promise<ApiResponse<AuthResponse>> {
+    const response = await apiService.post<ApiResponse<AuthResponse>>('/auth/login', credentials);
+    
+    if (response.success && response.data) {
+      localStorage.setItem('token', response.data.token);
+      localStorage.setItem('user', JSON.stringify(response.data.user));
+    }
+    
+    return response;
+  }
+
+  async register(data: RegisterData): Promise<ApiResponse<AuthResponse>> {
+    const response = await apiService.post<ApiResponse<AuthResponse>>('/auth/register', data);
+    
+    if (response.success && response.data) {
+      localStorage.setItem('token', response.data.token);
+      localStorage.setItem('user', JSON.stringify(response.data.user));
+    }
+    
+    return response;
+  }
+
+  async logout(): Promise<void> {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+  }
+
+  async getCurrentUser(): Promise<ApiResponse<{ user: User }>> {
+    return apiService.get<ApiResponse<{ user: User }>>('/auth/me');
+  }
+
+  async updateProfile(data: Partial<User>): Promise<ApiResponse<{ user: User }>> {
+    return apiService.patch<ApiResponse<{ user: User }>>('/auth/profile', data);
+  }
+
+  async forgotPassword(email: string): Promise<ApiResponse> {
+    return apiService.post<ApiResponse>('/auth/forgot-password', { email });
+  }
+
+  async resetPassword(token: string, newPassword: string): Promise<ApiResponse> {
+    return apiService.post<ApiResponse>('/auth/reset-password', { token, newPassword });
+  }
+
+  async verifyEmail(token: string): Promise<ApiResponse> {
+    return apiService.post<ApiResponse>(`/auth/verify-email/${token}`);
+  }
+
+  getStoredUser(): User | null {
+    const userStr = localStorage.getItem('user');
+    return userStr ? JSON.parse(userStr) : null;
+  }
+
+  getStoredToken(): string | null {
+    return localStorage.getItem('token');
+  }
+
+  isAuthenticated(): boolean {
+    return !!this.getStoredToken();
+  }
+}
+
+export const authService = new AuthService();
+```
+
+### 3. 状态管理（React Query）
+
+```typescript
+// frontend/src/hooks/useAuth.ts
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { authService, LoginCredentials, RegisterData } from '../services/authService';
+import { User } from '../types';
+import { message } from 'antd';
+import { useNavigate } from 'react-router-dom';
+
+export const useAuth = () => {
+  const queryClient = useQueryClient();
+  const navigate = useNavigate();
+
+  // 获取当前用户信息
+  const { data: currentUser, isLoading: isLoadingUser } = useQuery({
+    queryKey: ['currentUser'],
+    queryFn: () => authService.getCurrentUser(),
+    enabled: authService.isAuthenticated(),
+    select: (data) => data.data?.user,
+    staleTime: 5 * 60 * 1000, // 5分钟
+    retry: false
+  });
+
+  // 登录
+  const loginMutation = useMutation({
+    mutationFn: (credentials: LoginCredentials) => authService.login(credentials),
+    onSuccess: (data) => {
+      if (data.success) {
+        queryClient.setQueryData(['currentUser'], data.data?.user);
+        message.success('登录成功');
+        navigate('/dashboard');
+      }
+    },
+    onError: () => {
+      message.error('登录失败，请检查邮箱和密码');
+    }
+  });
+
+  // 注册
+  const registerMutation = useMutation({
+    mutationFn: (data: RegisterData) => authService.register(data),
+    onSuccess: (data) => {
+      if (data.success) {
+        queryClient.setQueryData(['currentUser'], data.data?.user);
+        message.success('注册成功');
+        navigate('/dashboard');
+      }
+    },
+    onError: () => {
+      message.error('注册失败，请检查输入信息');
+    }
+  });
+
+  // 登出
+  const logoutMutation = useMutation({
+    mutationFn: () => authService.logout(),
+    onSuccess: () => {
+      queryClient.clear();
+      navigate('/login');
+      message.success('已退出登录');
+    }
+  });
+
+  // 更新用户资料
+  const updateProfileMutation = useMutation({
+    mutationFn: (data: Partial<User>) => authService.updateProfile(data),
+    onSuccess: (data) => {
+      if (data.success) {
+        queryClient.setQueryData(['currentUser'], data.data?.user);
+        message.success('资料更新成功');
+      }
+    },
+    onError: () => {
+      message.error('资料更新失败');
+    }
+  });
+
+  return {
+    currentUser,
+    isLoadingUser,
+    isAuthenticated: authService.isAuthenticated(),
+    login: loginMutation.mutate,
+    register: registerMutation.mutate,
+    logout: logoutMutation.mutate,
+    updateProfile: updateProfileMutation.mutate,
+    isLoggingIn: loginMutation.isPending,
+    isRegistering: registerMutation.isPending,
+    isUpdatingProfile: updateProfileMutation.isPending
+  };
+};
+```
+
+### 4. 核心组件开发
+
+```typescript
+// frontend/src/components/TaskBoard/TaskBoard.tsx
+import React, { useState, useCallback } from 'react';
+import { DragDropContext, Droppable, Draggable, DropResult } from 'react-beautiful-dnd';
+import { Card, Avatar, Tag, Typography, Space, Button, Modal } from 'antd';
+import { PlusOutlined, CalendarOutlined, UserOutlined } from '@ant-design/icons';
+import { Task, TaskFilters } from '../../types';
+import { useTasks } from '../../hooks/useTasks';
+import { TaskModal } from './TaskModal';
+import { formatDate, getPriorityColor, getStatusColor } from '../../utils';
+import './TaskBoard.scss';
+
+const { Title } = Typography;
+
+interface TaskBoardProps {
+  projectId: string;
+}
+
+const TASK_STATUSES = [
+  { key: 'todo', title: '待办', color: '#f5f5f5' },
+  { key: 'in-progress', title: '进行中', color: '#e6f7ff' },
+  { key: 'review', title: '待审核', color: '#fff7e6' },
+  { key: 'done', title: '已完成', color: '#f6ffed' }
+];
+
+export const TaskBoard: React.FC<TaskBoardProps> = ({ projectId }) => {
+  const [isTaskModalVisible, setIsTaskModalVisible] = useState(false);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
+  
+  const filters: TaskFilters = {
+    projectId,
+    limit: 100 // 看板模式加载更多任务
+  };
+  
+  const { data: tasksData, isLoading, updateTaskMutation } = useTasks(filters);
+  const tasks = tasksData?.tasks || [];
+
+  // 按状态分组任务
+  const tasksByStatus = TASK_STATUSES.reduce((acc, status) => {
+    acc[status.key] = tasks.filter(task => task.status === status.key);
+    return acc;
+  }, {} as Record<string, Task[]>);
+
+  // 拖拽处理
+  const handleDragEnd = useCallback((result: DropResult) => {
+    const { destination, source, draggableId } = result;
+    
+    if (!destination) return;
+    if (destination.droppableId === source.droppableId && destination.index === source.index) {
+      return;
+    }
+
+    const taskId = draggableId;
+    const newStatus = destination.droppableId as Task['status'];
+    
+    updateTaskMutation.mutate({
+      taskId,
+      updates: { status: newStatus }
+    });
+  }, [updateTaskMutation]);
+
+  const handleTaskClick = (task: Task) => {
+    setEditingTask(task);
+    setIsTaskModalVisible(true);
+  };
+
+  const handleCreateTask = () => {
+    setEditingTask(null);
+    setIsTaskModalVisible(true);
+  };
+
+  if (isLoading) {
+    return <div>加载中...</div>;
+  }
+
+  return (
+    <div className="task-board">
+      <div className="task-board-header">
+        <Title level={3}>任务看板</Title>
+        <Button type="primary" icon={<PlusOutlined />} onClick={handleCreateTask}>
+          创建任务
+        </Button>
+      </div>
+      
+      <DragDropContext onDragEnd={handleDragEnd}>
+        <div className="task-board-columns">
+          {TASK_STATUSES.map(status => (
+            <div key={status.key} className="task-column">
+              <div className="column-header" style={{ backgroundColor: status.color }}>
+                <Title level={5}>{status.title}</Title>
+                <span className="task-count">{tasksByStatus[status.key].length}</span>
+              </div>
+              
+              <Droppable droppableId={status.key}>
+                {(provided, snapshot) => (
+                  <div
+                    ref={provided.innerRef}
+                    {...provided.droppableProps}
+                    className={`column-content ${snapshot.isDraggingOver ? 'dragging-over' : ''}`}
+                  >
+                    {tasksByStatus[status.key].map((task, index) => (
+                      <Draggable key={task._id} draggableId={task._id} index={index}>
+                        {(provided, snapshot) => (
+                          <div
+                            ref={provided.innerRef}
+                            {...provided.draggableProps}
+                            {...provided.dragHandleProps}
+                            className={`task-card ${snapshot.isDragging ? 'dragging' : ''}`}
+                            onClick={() => handleTaskClick(task)}
+                          >
+                            <TaskCard task={task} />
+                          </div>
+                        )}
+                      </Draggable>
+                    ))}
+                    {provided.placeholder}
+                  </div>
+                )}
+              </Droppable>
+            </div>
+          ))}
+        </div>
+      </DragDropContext>
+      
+      <TaskModal
+        visible={isTaskModalVisible}
+        task={editingTask}
+        projectId={projectId}
+        onCancel={() => setIsTaskModalVisible(false)}
+        onSuccess={() => setIsTaskModalVisible(false)}
+      />
+    </div>
+  );
+};
+
+// 任务卡片组件
+interface TaskCardProps {
+  task: Task;
+}
+
+const TaskCard: React.FC<TaskCardProps> = ({ task }) => {
+  return (
+    <Card size="small" className="task-item">
+      <div className="task-header">
+        <Typography.Text strong className="task-title">
+          {task.title}
+        </Typography.Text>
+        <Tag color={getPriorityColor(task.priority)}>
+          {task.priority}
+        </Tag>
+      </div>
+      
+      {task.description && (
+        <Typography.Paragraph 
+          className="task-description" 
+          ellipsis={{ rows: 2 }}
+        >
+          {task.description}
+        </Typography.Paragraph>
+      )}
+      
+      <div className="task-meta">
+        <Space>
+          {task.assignee && (
+            <Avatar 
+              size="small" 
+              src={task.assignee.avatar} 
+              icon={<UserOutlined />}
+            />
+          )}
+          
+          {task.dueDate && (
+            <Space size={4}>
+              <CalendarOutlined />
+              <span className={task.isOverdue ? 'overdue' : ''}>
+                {formatDate(task.dueDate)}
+              </span>
+            </Space>
+          )}
+          
+          {task.comments.length > 0 && (
+            <span className="comment-count">
+              💬 {task.comments.length}
+            </span>
+          )}
+        </Space>
+      </div>
+      
+      {task.tags.length > 0 && (
+        <div className="task-tags">
+          {task.tags.map(tag => (
+            <Tag key={tag} size="small">{tag}</Tag>
+          ))}
+        </div>
+      )}
+    </Card>
+  );
+};
+```
+
+### 5. 实时通信（Socket.io）
+
+```typescript
+// frontend/src/hooks/useSocket.ts
+import { useEffect, useRef } from 'react';
+import { io, Socket } from 'socket.io-client';
+import { useAuth } from './useAuth';
+import { message } from 'antd';
+
+export const useSocket = (projectId?: string) => {
+  const socketRef = useRef<Socket | null>(null);
+  const { currentUser, isAuthenticated } = useAuth();
+
+  useEffect(() => {
+    if (!isAuthenticated || !currentUser) return;
+
+    // 创建Socket连接
+    socketRef.current = io(process.env.REACT_APP_SOCKET_URL || 'http://localhost:3001', {
+      auth: {
+        token: localStorage.getItem('token')
+      }
+    });
+
+    const socket = socketRef.current;
+
+    // 连接成功
+    socket.on('connect', () => {
+      console.log('Socket连接成功');
+      
+      // 加入项目房间
+      if (projectId) {
+        socket.emit('joinProject', projectId);
+      }
+    });
+
+    // 监听任务相关事件
+    socket.on('taskCreated', (data) => {
+      message.info(`${data.creator.username} 创建了新任务: ${data.task.title}`);
+    });
+
+    socket.on('taskStatusChanged', (data) => {
+      message.info(`任务状态已更新: ${data.oldStatus} → ${data.newStatus}`);
+    });
+
+    socket.on('commentAdded', (data) => {
+      message.info(`${data.comment.author.username} 添加了评论`);
+    });
+
+    socket.on('taskDeleted', (data) => {
+      message.warning(`${data.deletedBy.username} 删除了一个任务`);
+    });
+
+    // 连接错误
+    socket.on('connect_error', (error) => {
+      console.error('Socket连接错误:', error);
+      message.error('实时连接失败');
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [isAuthenticated, currentUser, projectId]);
+
+  // 发送消息
+  const emit = (event: string, data: any) => {
+    if (socketRef.current) {
+      socketRef.current.emit(event, data);
+    }
+  };
+
+  return { emit };
+};
+```
+
+## 部署与运维
+
+### 1. Docker容器化
+
+```dockerfile
+# backend/Dockerfile
+FROM node:18-alpine
+
+WORKDIR /app
+
+# 复制package文件
+COPY package*.json ./
+
+# 安装依赖
+RUN npm ci --only=production
+
+# 复制源代码
+COPY . .
+
+# 创建非root用户
+RUN addgroup -g 1001 -S nodejs
+RUN adduser -S nodejs -u 1001
+
+# 更改文件所有权
+RUN chown -R nodejs:nodejs /app
+USER nodejs
+
+EXPOSE 3001
+
+CMD ["npm", "start"]
+```
+
+```dockerfile
+# frontend/Dockerfile
+FROM node:18-alpine as builder
+
+WORKDIR /app
+
+# 复制package文件
+COPY package*.json ./
+
+# 安装依赖
+RUN npm ci
+
+# 复制源代码
+COPY . .
+
+# 构建应用
+RUN npm run build
+
+# 生产环境
+FROM nginx:alpine
+
+# 复制构建文件
+COPY --from=builder /app/build /usr/share/nginx/html
+
+# 复制nginx配置
+COPY nginx.conf /etc/nginx/nginx.conf
+
+EXPOSE 80
+
+CMD ["nginx", "-g", "daemon off;"]
+```
+
+```yaml
+# docker-compose.yml
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:6.0
+    container_name: task-mongodb
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password123
+      MONGO_INITDB_DATABASE: taskmanager
+    volumes:
+      - mongodb_data:/data/db
+      - ./backend/scripts/init-mongo.js:/docker-entrypoint-initdb.d/init-mongo.js:ro
+    ports:
+      - "27017:27017"
+    networks:
+      - task-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: task-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    networks:
+      - task-network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: task-backend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      MONGODB_URI: mongodb://admin:password123@mongodb:27017/taskmanager?authSource=admin
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: your-super-secret-jwt-key
+      JWT_EXPIRES_IN: 7d
+      EMAIL_HOST: smtp.gmail.com
+      EMAIL_PORT: 587
+      EMAIL_USER: your-email@gmail.com
+      EMAIL_PASS: your-app-password
+      FRONTEND_URL: http://localhost:3000
+    depends_on:
+      - mongodb
+      - redis
+    ports:
+      - "3001:3001"
+    networks:
+      - task-network
+    volumes:
+      - ./backend/uploads:/app/uploads
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: task-frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - task-network
+
+volumes:
+  mongodb_data:
+  redis_data:
+
+networks:
+  task-network:
+    driver: bridge
+```
+
+### 2. CI/CD配置
+
+```yaml
+# .github/workflows/deploy.yml
+name: Deploy Task Management System
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    services:
+      mongodb:
+        image: mongo:6.0
+        env:
+          MONGO_INITDB_ROOT_USERNAME: admin
+          MONGO_INITDB_ROOT_PASSWORD: password123
+        ports:
+          - 27017:27017
+      
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: '**/package-lock.json'
+    
+    # 后端测试
+    - name: Install backend dependencies
+      working-directory: ./backend
+      run: npm ci
+    
+    - name: Run backend tests
+      working-directory: ./backend
+      run: npm test
+      env:
+        NODE_ENV: test
+        MONGODB_URI: mongodb://admin:password123@localhost:27017/taskmanager_test?authSource=admin
+        REDIS_URL: redis://localhost:6379
+        JWT_SECRET: test-secret
+    
+    # 前端测试
+    - name: Install frontend dependencies
+      working-directory: ./frontend
+      run: npm ci
+    
+    - name: Run frontend tests
+      working-directory: ./frontend
+      run: npm test -- --coverage --watchAll=false
+    
+    - name: Build frontend
+      working-directory: ./frontend
+      run: npm run build
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Deploy to production
+      uses: appleboy/ssh-action@v0.1.5
+      with:
+        host: ${{ secrets.HOST }}
+        username: ${{ secrets.USERNAME }}
+        key: ${{ secrets.SSH_KEY }}
+        script: |
+          cd /var/www/task-management-system
+          git pull origin main
+          docker-compose down
+          docker-compose build
+          docker-compose up -d
+          docker system prune -f
+```
+
+## 性能优化与最佳实践
+
+### 1. 数据库优化
+
+```javascript
+// backend/src/config/database.js
+const mongoose = require('mongoose');
+
+class DatabaseManager {
+  async connect() {
+    try {
+      await mongoose.connect(process.env.MONGODB_URI, {
+        maxPoolSize: 10, // 连接池大小
+        serverSelectionTimeoutMS: 5000, // 服务器选择超时
+        socketTimeoutMS: 45000, // Socket超时
+        bufferMaxEntries: 0, // 禁用缓冲
+        bufferCommands: false
+      });
+      
+      console.log('MongoDB连接成功');
+      
+      // 创建索引
+      await this.createIndexes();
+    } catch (error) {
+      console.error('MongoDB连接失败:', error);
+      process.exit(1);
+    }
+  }
+  
+  async createIndexes() {
+    const Task = require('../models/Task');
+    const Project = require('../models/Project');
+    const User = require('../models/User');
+    
+    // 任务索引
+    await Task.collection.createIndex({ project: 1, status: 1 });
+    await Task.collection.createIndex({ assignee: 1, dueDate: 1 });
+    await Task.collection.createIndex({ creator: 1, createdAt: -1 });
+    await Task.collection.createIndex({ 
+      title: 'text', 
+      description: 'text' 
+    }, {
+      weights: { title: 10, description: 5 }
+    });
+    
+    // 项目索引
+    await Project.collection.createIndex({ owner: 1 });
+    await Project.collection.createIndex({ 'members.user': 1 });
+    await Project.collection.createIndex({ status: 1, createdAt: -1 });
+    
+    // 用户索引
+    await User.collection.createIndex({ email: 1 }, { unique: true });
+    await User.collection.createIndex({ username: 1 }, { unique: true });
+    
+    console.log('数据库索引创建完成');
+  }
+}
+
+module.exports = new DatabaseManager();
+```
+
+### 2. 缓存策略
+
+```javascript
+// backend/src/services/cacheService.js
+const Redis = require('ioredis');
+
+class CacheService {
+  constructor() {
+    this.redis = new Redis(process.env.REDIS_URL);
+  }
+  
+  // 缓存用户信息
+  async cacheUser(userId, userData, ttl = 3600) {
+    const key = `user:${userId}`;
+    await this.redis.setex(key, ttl, JSON.stringify(userData));
+  }
+  
+  async getCachedUser(userId) {
+    const key = `user:${userId}`;
+    const cached = await this.redis.get(key);
+    return cached ? JSON.parse(cached) : null;
+  }
+  
+  // 缓存项目统计
+  async cacheProjectStats(projectId, stats, ttl = 300) {
+    const key = `project:stats:${projectId}`;
+    await this.redis.setex(key, ttl, JSON.stringify(stats));
+  }
+  
+  async getCachedProjectStats(projectId) {
+    const key = `project:stats:${projectId}`;
+    const cached = await this.redis.get(key);
+    return cached ? JSON.parse(cached) : null;
+  }
+  
+  // 清除相关缓存
+  async invalidateUserCache(userId) {
+    await this.redis.del(`user:${userId}`);
+  }
+  
+  async invalidateProjectCache(projectId) {
+    const pattern = `project:*:${projectId}`;
+    const keys = await this.redis.keys(pattern);
+    if (keys.length > 0) {
+      await this.redis.del(...keys);
+    }
+  }
+}
+
+module.exports = new CacheService();
+```
+
+### 3. 前端性能优化
+
+```typescript
+// frontend/src/components/VirtualizedTaskList.tsx
+import React, { useMemo } from 'react';
+import { FixedSizeList as List } from 'react-window';
+import { Task } from '../../types';
+import { TaskCard } from './TaskCard';
+
+interface VirtualizedTaskListProps {
+  tasks: Task[];
+  height: number;
+  itemHeight: number;
+  onTaskClick: (task: Task) => void;
+}
+
+export const VirtualizedTaskList: React.FC<VirtualizedTaskListProps> = ({
+  tasks,
+  height,
+  itemHeight,
+  onTaskClick
+}) => {
+  const ItemRenderer = useMemo(() => {
+    return ({ index, style }: { index: number; style: React.CSSProperties }) => {
+      const task = tasks[index];
+      return (
+        <div style={style}>
+          <TaskCard task={task} onClick={() => onTaskClick(task)} />
+        </div>
+      );
+    };
+  }, [tasks, onTaskClick]);
+
+  return (
+    <List
+      height={height}
+      itemCount={tasks.length}
+      itemSize={itemHeight}
+      itemData={tasks}
+    >
+      {ItemRenderer}
+    </List>
+  );
+};
+```
+
+## 总结
+
+通过这个全栈项目实战，我们完成了一个功能完整的任务管理系统，涵盖了现代Web开发的各个方面：
+
+**技术收获：**
+1. **后端架构**：RESTful API设计、数据库建模、身份认证、实时通信
+2. **前端开发**：React组件化、状态管理、用户体验优化
+3. **工程化**：Docker容器化、CI/CD自动化部署、性能监控
+4. **最佳实践**：代码规范、错误处理、安全防护、性能优化
+
+**项目特色：**
+- 完整的用户认证系统（注册、登录、邮箱验证、密码重置）
+- 灵活的权限管理（项目所有者、管理员、成员）
+- 实时协作功能（Socket.io实时通知）
+- 丰富的任务管理功能（看板视图、时间追踪、文件附件）
+- 响应式设计和良好的用户体验
+- 完善的错误处理和数据验证
+- 可扩展的架构设计
+
+这个项目为你提供了一个完整的全栈开发模板，可以作为其他项目的基础进行扩展和定制。通过实际开发过程，你将深入理解现代Web应用的开发流程和最佳实践。

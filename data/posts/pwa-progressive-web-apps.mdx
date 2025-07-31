@@ -1,0 +1,1165 @@
+---
+title: "PWA渐进式Web应用开发实战：打造原生级的Web体验"
+slug: "pwa-progressive-web-apps"
+excerpt: "深入探索PWA技术栈，从Service Worker到Web App Manifest，构建具备离线功能、推送通知和原生应用体验的渐进式Web应用。"
+date: "2024-03-11"
+published: true
+category: "新技术探索"
+tags: ["PWA", "前端开发"]
+author: "hailong"
+readingTime: 15
+---
+
+## 引言
+
+渐进式 Web 应用（Progressive Web Apps，PWA）代表了 Web 技术的重要发展方向，它结合了 Web 和原生应用的优势，为用户提供快速、可靠、引人入胜的体验。PWA 不仅能够在各种设备上运行，还具备离线功能、推送通知、应用安装等原生应用特性。
+
+## PWA 核心概念与特性
+
+### 1. PWA 的核心原则
+
+#### 渐进增强（Progressive Enhancement）
+
+- **基础功能优先**：确保在所有浏览器中都能正常工作
+- **功能分层**：在支持的浏览器中提供增强功能
+- **优雅降级**：在不支持的环境中保持基本可用性
+
+#### 响应式设计（Responsive）
+
+- **适配所有设备**：从手机到桌面的完美适配
+- **灵活布局**：基于视口大小动态调整
+- **触控友好**：优化触控交互体验
+
+#### 连接独立（Connectivity Independent）
+
+- **离线工作**：在网络不稳定或离线时仍可使用
+- **后台同步**：网络恢复时自动同步数据
+- **智能缓存**：优化资源加载和存储策略
+
+### 2. PWA 技术栈
+
+#### Service Worker
+
+- **后台脚本**：独立于主线程运行的 JavaScript
+- **网络代理**：拦截和处理网络请求
+- **缓存管理**：实现复杂的缓存策略
+- **后台同步**：处理离线数据同步
+
+#### Web App Manifest
+
+- **应用元数据**：定义应用的基本信息
+- **安装体验**：控制应用的安装行为
+- **启动配置**：设置应用启动时的外观
+
+#### HTTPS 要求
+
+- **安全连接**：PWA 必须在 HTTPS 环境下运行
+- **数据保护**：确保用户数据传输安全
+- **API 访问**：许多 PWA API 需要安全上下文
+
+## Service Worker 深度实践
+
+### 1. Service Worker 生命周期
+
+```javascript
+// sw.js - Service Worker主文件
+const CACHE_NAME = "pwa-cache-v1";
+const urlsToCache = [
+  "/",
+  "/static/css/main.css",
+  "/static/js/main.js",
+  "/static/images/logo.png",
+  "/offline.html",
+];
+
+// 安装事件 - 缓存资源
+self.addEventListener("install", (event) => {
+  console.log("Service Worker 安装中...");
+
+  event.waitUntil(
+    caches
+      .open(CACHE_NAME)
+      .then((cache) => {
+        console.log("缓存已打开");
+        return cache.addAll(urlsToCache);
+      })
+      .then(() => {
+        // 强制激活新的Service Worker
+        return self.skipWaiting();
+      })
+  );
+});
+
+// 激活事件 - 清理旧缓存
+self.addEventListener("activate", (event) => {
+  console.log("Service Worker 激活中...");
+
+  event.waitUntil(
+    caches
+      .keys()
+      .then((cacheNames) => {
+        return Promise.all(
+          cacheNames.map((cacheName) => {
+            if (cacheName !== CACHE_NAME) {
+              console.log("删除旧缓存:", cacheName);
+              return caches.delete(cacheName);
+            }
+          })
+        );
+      })
+      .then(() => {
+        // 立即控制所有客户端
+        return self.clients.claim();
+      })
+  );
+});
+
+// 拦截网络请求
+self.addEventListener("fetch", (event) => {
+  event.respondWith(
+    caches.match(event.request).then((response) => {
+      // 缓存命中，返回缓存资源
+      if (response) {
+        return response;
+      }
+
+      // 缓存未命中，发起网络请求
+      return fetch(event.request)
+        .then((response) => {
+          // 检查响应是否有效
+          if (
+            !response ||
+            response.status !== 200 ||
+            response.type !== "basic"
+          ) {
+            return response;
+          }
+
+          // 克隆响应用于缓存
+          const responseToCache = response.clone();
+
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, responseToCache);
+          });
+
+          return response;
+        })
+        .catch(() => {
+          // 网络请求失败，返回离线页面
+          if (event.request.destination === "document") {
+            return caches.match("/offline.html");
+          }
+        });
+    })
+  );
+});
+```
+
+### 2. 高级缓存策略
+
+```javascript
+// cache-strategies.js
+class CacheStrategies {
+  // 缓存优先策略
+  static cacheFirst(request) {
+    return caches.match(request).then((cachedResponse) => {
+      if (cachedResponse) {
+        return cachedResponse;
+      }
+      return fetch(request).then((response) => {
+        const responseClone = response.clone();
+        caches.open(CACHE_NAME).then((cache) => {
+          cache.put(request, responseClone);
+        });
+        return response;
+      });
+    });
+  }
+
+  // 网络优先策略
+  static networkFirst(request, timeout = 3000) {
+    return new Promise((resolve, reject) => {
+      const timeoutId = setTimeout(() => {
+        caches.match(request).then((cachedResponse) => {
+          if (cachedResponse) {
+            resolve(cachedResponse);
+          } else {
+            reject(new Error("网络超时且无缓存"));
+          }
+        });
+      }, timeout);
+
+      fetch(request)
+        .then((response) => {
+          clearTimeout(timeoutId);
+          const responseClone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(request, responseClone);
+          });
+          resolve(response);
+        })
+        .catch(() => {
+          clearTimeout(timeoutId);
+          caches.match(request).then((cachedResponse) => {
+            if (cachedResponse) {
+              resolve(cachedResponse);
+            } else {
+              reject(new Error("网络失败且无缓存"));
+            }
+          });
+        });
+    });
+  }
+
+  // 最快响应策略
+  static fastest(request) {
+    return new Promise((resolve, reject) => {
+      let resolved = false;
+
+      const resolveOnce = (response) => {
+        if (!resolved) {
+          resolved = true;
+          resolve(response);
+        }
+      };
+
+      // 同时尝试缓存和网络
+      caches.match(request).then((cachedResponse) => {
+        if (cachedResponse) {
+          resolveOnce(cachedResponse);
+        }
+      });
+
+      fetch(request)
+        .then((response) => {
+          const responseClone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(request, responseClone);
+          });
+          resolveOnce(response);
+        })
+        .catch(() => {
+          if (!resolved) {
+            reject(new Error("缓存和网络都失败"));
+          }
+        });
+    });
+  }
+
+  // 仅网络策略
+  static networkOnly(request) {
+    return fetch(request);
+  }
+
+  // 仅缓存策略
+  static cacheOnly(request) {
+    return caches.match(request);
+  }
+}
+
+// 在Service Worker中使用策略
+self.addEventListener("fetch", (event) => {
+  const { request } = event;
+  const url = new URL(request.url);
+
+  // 根据资源类型选择缓存策略
+  if (request.destination === "document") {
+    // HTML文档使用网络优先
+    event.respondWith(CacheStrategies.networkFirst(request));
+  } else if (request.destination === "image") {
+    // 图片使用缓存优先
+    event.respondWith(CacheStrategies.cacheFirst(request));
+  } else if (url.pathname.startsWith("/api/")) {
+    // API请求使用最快响应
+    event.respondWith(CacheStrategies.fastest(request));
+  } else {
+    // 其他资源使用缓存优先
+    event.respondWith(CacheStrategies.cacheFirst(request));
+  }
+});
+```
+
+### 3. 后台同步实现
+
+```javascript
+// background-sync.js
+class BackgroundSync {
+  constructor() {
+    this.syncQueue = "sync-queue";
+    this.initializeSync();
+  }
+
+  initializeSync() {
+    // 注册后台同步事件
+    self.addEventListener("sync", (event) => {
+      if (event.tag === this.syncQueue) {
+        event.waitUntil(this.processQueue());
+      }
+    });
+
+    // 监听消息事件
+    self.addEventListener("message", (event) => {
+      if (event.data.type === "QUEUE_SYNC") {
+        this.queueSync(event.data.payload);
+      }
+    });
+  }
+
+  // 队列同步任务
+  async queueSync(data) {
+    try {
+      // 尝试立即发送
+      const response = await fetch("/api/sync", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+      });
+
+      if (response.ok) {
+        console.log("数据同步成功");
+        return;
+      }
+    } catch (error) {
+      console.log("网络不可用，添加到同步队列");
+    }
+
+    // 网络不可用，存储到IndexedDB
+    await this.storeForSync(data);
+
+    // 注册后台同步
+    if (
+      "serviceWorker" in navigator &&
+      "sync" in window.ServiceWorkerRegistration.prototype
+    ) {
+      const registration = await navigator.serviceWorker.ready;
+      await registration.sync.register(this.syncQueue);
+    }
+  }
+
+  // 存储待同步数据
+  async storeForSync(data) {
+    return new Promise((resolve, reject) => {
+      const request = indexedDB.open("PWADatabase", 1);
+
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => {
+        const db = request.result;
+        const transaction = db.transaction(["syncQueue"], "readwrite");
+        const store = transaction.objectStore("syncQueue");
+
+        const syncData = {
+          id: Date.now(),
+          data: data,
+          timestamp: new Date().toISOString(),
+        };
+
+        store.add(syncData);
+        transaction.oncomplete = () => resolve();
+        transaction.onerror = () => reject(transaction.error);
+      };
+
+      request.onupgradeneeded = (event) => {
+        const db = event.target.result;
+        if (!db.objectStoreNames.contains("syncQueue")) {
+          const store = db.createObjectStore("syncQueue", { keyPath: "id" });
+          store.createIndex("timestamp", "timestamp", { unique: false });
+        }
+      };
+    });
+  }
+
+  // 处理同步队列
+  async processQueue() {
+    const items = await this.getQueuedItems();
+
+    for (const item of items) {
+      try {
+        const response = await fetch("/api/sync", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(item.data),
+        });
+
+        if (response.ok) {
+          await this.removeFromQueue(item.id);
+          console.log("后台同步成功:", item.id);
+        } else {
+          console.log("同步失败，保留在队列中:", item.id);
+        }
+      } catch (error) {
+        console.log("同步错误:", error);
+        break; // 网络仍不可用，停止处理
+      }
+    }
+  }
+
+  // 获取队列中的项目
+  async getQueuedItems() {
+    return new Promise((resolve, reject) => {
+      const request = indexedDB.open("PWADatabase", 1);
+
+      request.onsuccess = () => {
+        const db = request.result;
+        const transaction = db.transaction(["syncQueue"], "readonly");
+        const store = transaction.objectStore("syncQueue");
+        const getAllRequest = store.getAll();
+
+        getAllRequest.onsuccess = () => {
+          resolve(getAllRequest.result);
+        };
+        getAllRequest.onerror = () => reject(getAllRequest.error);
+      };
+
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  // 从队列中移除项目
+  async removeFromQueue(id) {
+    return new Promise((resolve, reject) => {
+      const request = indexedDB.open("PWADatabase", 1);
+
+      request.onsuccess = () => {
+        const db = request.result;
+        const transaction = db.transaction(["syncQueue"], "readwrite");
+        const store = transaction.objectStore("syncQueue");
+        const deleteRequest = store.delete(id);
+
+        deleteRequest.onsuccess = () => resolve();
+        deleteRequest.onerror = () => reject(deleteRequest.error);
+      };
+
+      request.onerror = () => reject(request.error);
+    });
+  }
+}
+
+// 初始化后台同步
+const backgroundSync = new BackgroundSync();
+```
+
+## Web App Manifest 配置
+
+### 1. 基础 Manifest 配置
+
+```json
+{
+  "name": "PWA示例应用",
+  "short_name": "PWADemo",
+  "description": "一个功能完整的PWA示例应用",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "theme_color": "#2196F3",
+  "background_color": "#ffffff",
+  "lang": "zh-CN",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "/icons/icon-72x72.png",
+      "sizes": "72x72",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/icons/icon-96x96.png",
+      "sizes": "96x96",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/icons/icon-128x128.png",
+      "sizes": "128x128",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/icons/icon-144x144.png",
+      "sizes": "144x144",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/icons/icon-152x152.png",
+      "sizes": "152x152",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/icons/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/icons/icon-384x384.png",
+      "sizes": "384x384",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "新建文档",
+      "short_name": "新建",
+      "description": "快速创建新文档",
+      "url": "/new",
+      "icons": [
+        {
+          "src": "/icons/new-document.png",
+          "sizes": "96x96"
+        }
+      ]
+    },
+    {
+      "name": "搜索",
+      "short_name": "搜索",
+      "description": "搜索文档",
+      "url": "/search",
+      "icons": [
+        {
+          "src": "/icons/search.png",
+          "sizes": "96x96"
+        }
+      ]
+    }
+  ],
+  "categories": ["productivity", "utilities"],
+  "screenshots": [
+    {
+      "src": "/screenshots/desktop.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "platform": "wide",
+      "label": "桌面版截图"
+    },
+    {
+      "src": "/screenshots/mobile.png",
+      "sizes": "750x1334",
+      "type": "image/png",
+      "platform": "narrow",
+      "label": "移动版截图"
+    }
+  ]
+}
+```
+
+### 2. 应用安装管理
+
+```javascript
+// install-manager.js
+class InstallManager {
+  constructor() {
+    this.deferredPrompt = null;
+    this.isInstalled = false;
+    this.initializeInstall();
+  }
+
+  initializeInstall() {
+    // 监听安装提示事件
+    window.addEventListener("beforeinstallprompt", (event) => {
+      console.log("PWA安装提示触发");
+
+      // 阻止默认的安装提示
+      event.preventDefault();
+
+      // 保存事件以便后续使用
+      this.deferredPrompt = event;
+
+      // 显示自定义安装按钮
+      this.showInstallButton();
+    });
+
+    // 监听应用安装事件
+    window.addEventListener("appinstalled", (event) => {
+      console.log("PWA已安装");
+      this.isInstalled = true;
+      this.hideInstallButton();
+      this.trackInstallation();
+    });
+
+    // 检查是否已安装
+    this.checkInstallStatus();
+  }
+
+  // 检查安装状态
+  async checkInstallStatus() {
+    // 检查是否在独立模式下运行
+    if (window.matchMedia("(display-mode: standalone)").matches) {
+      this.isInstalled = true;
+      return;
+    }
+
+    // 检查是否从主屏幕启动
+    if (window.navigator.standalone === true) {
+      this.isInstalled = true;
+      return;
+    }
+
+    // 使用getInstalledRelatedApps API（实验性）
+    if ("getInstalledRelatedApps" in navigator) {
+      try {
+        const relatedApps = await navigator.getInstalledRelatedApps();
+        this.isInstalled = relatedApps.length > 0;
+      } catch (error) {
+        console.log("无法检查相关应用:", error);
+      }
+    }
+  }
+
+  // 显示安装按钮
+  showInstallButton() {
+    const installButton = document.getElementById("install-button");
+    if (installButton) {
+      installButton.style.display = "block";
+      installButton.addEventListener("click", () => this.promptInstall());
+    }
+  }
+
+  // 隐藏安装按钮
+  hideInstallButton() {
+    const installButton = document.getElementById("install-button");
+    if (installButton) {
+      installButton.style.display = "none";
+    }
+  }
+
+  // 提示安装
+  async promptInstall() {
+    if (!this.deferredPrompt) {
+      console.log("安装提示不可用");
+      return;
+    }
+
+    // 显示安装提示
+    this.deferredPrompt.prompt();
+
+    // 等待用户响应
+    const { outcome } = await this.deferredPrompt.userChoice;
+
+    console.log(`用户选择: ${outcome}`);
+
+    if (outcome === "accepted") {
+      this.trackInstallAccepted();
+    } else {
+      this.trackInstallDismissed();
+    }
+
+    // 清除保存的提示
+    this.deferredPrompt = null;
+    this.hideInstallButton();
+  }
+
+  // 跟踪安装事件
+  trackInstallation() {
+    // 发送安装成功事件到分析服务
+    if (typeof gtag !== "undefined") {
+      gtag("event", "pwa_install", {
+        event_category: "PWA",
+        event_label: "Installation Completed",
+      });
+    }
+  }
+
+  trackInstallAccepted() {
+    if (typeof gtag !== "undefined") {
+      gtag("event", "pwa_install_prompt_accepted", {
+        event_category: "PWA",
+        event_label: "Install Prompt Accepted",
+      });
+    }
+  }
+
+  trackInstallDismissed() {
+    if (typeof gtag !== "undefined") {
+      gtag("event", "pwa_install_prompt_dismissed", {
+        event_category: "PWA",
+        event_label: "Install Prompt Dismissed",
+      });
+    }
+  }
+
+  // 获取安装状态
+  getInstallStatus() {
+    return {
+      isInstalled: this.isInstalled,
+      canInstall: this.deferredPrompt !== null,
+      isStandalone: window.matchMedia("(display-mode: standalone)").matches,
+    };
+  }
+}
+
+// 初始化安装管理器
+const installManager = new InstallManager();
+```
+
+## 推送通知实现
+
+### 1. 推送通知订阅
+
+```javascript
+// push-notifications.js
+class PushNotifications {
+  constructor() {
+    this.vapidPublicKey = "YOUR_VAPID_PUBLIC_KEY";
+    this.subscription = null;
+    this.initializePush();
+  }
+
+  async initializePush() {
+    // 检查浏览器支持
+    if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+      console.log("推送通知不受支持");
+      return;
+    }
+
+    try {
+      // 获取Service Worker注册
+      const registration = await navigator.serviceWorker.ready;
+
+      // 检查现有订阅
+      this.subscription = await registration.pushManager.getSubscription();
+
+      if (this.subscription) {
+        console.log("已存在推送订阅");
+        await this.sendSubscriptionToServer(this.subscription);
+      }
+    } catch (error) {
+      console.error("初始化推送通知失败:", error);
+    }
+  }
+
+  // 请求通知权限
+  async requestPermission() {
+    const permission = await Notification.requestPermission();
+
+    if (permission === "granted") {
+      console.log("通知权限已授予");
+      return true;
+    } else if (permission === "denied") {
+      console.log("通知权限被拒绝");
+      return false;
+    } else {
+      console.log("通知权限默认状态");
+      return false;
+    }
+  }
+
+  // 订阅推送通知
+  async subscribeToPush() {
+    try {
+      // 请求权限
+      const hasPermission = await this.requestPermission();
+      if (!hasPermission) {
+        throw new Error("通知权限未授予");
+      }
+
+      // 获取Service Worker注册
+      const registration = await navigator.serviceWorker.ready;
+
+      // 创建订阅
+      this.subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: this.urlBase64ToUint8Array(this.vapidPublicKey),
+      });
+
+      console.log("推送订阅成功");
+
+      // 发送订阅信息到服务器
+      await this.sendSubscriptionToServer(this.subscription);
+
+      return this.subscription;
+    } catch (error) {
+      console.error("订阅推送通知失败:", error);
+      throw error;
+    }
+  }
+
+  // 取消订阅
+  async unsubscribeFromPush() {
+    if (!this.subscription) {
+      console.log("没有活跃的推送订阅");
+      return;
+    }
+
+    try {
+      await this.subscription.unsubscribe();
+      console.log("推送订阅已取消");
+
+      // 通知服务器删除订阅
+      await this.removeSubscriptionFromServer(this.subscription);
+
+      this.subscription = null;
+    } catch (error) {
+      console.error("取消推送订阅失败:", error);
+      throw error;
+    }
+  }
+
+  // 发送订阅信息到服务器
+  async sendSubscriptionToServer(subscription) {
+    try {
+      const response = await fetch("/api/push/subscribe", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          subscription: subscription,
+          userAgent: navigator.userAgent,
+          timestamp: new Date().toISOString(),
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("发送订阅信息失败");
+      }
+
+      console.log("订阅信息已发送到服务器");
+    } catch (error) {
+      console.error("发送订阅信息错误:", error);
+      throw error;
+    }
+  }
+
+  // 从服务器删除订阅
+  async removeSubscriptionFromServer(subscription) {
+    try {
+      const response = await fetch("/api/push/unsubscribe", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ subscription }),
+      });
+
+      if (!response.ok) {
+        throw new Error("删除订阅信息失败");
+      }
+
+      console.log("订阅信息已从服务器删除");
+    } catch (error) {
+      console.error("删除订阅信息错误:", error);
+      throw error;
+    }
+  }
+
+  // 转换VAPID密钥格式
+  urlBase64ToUint8Array(base64String) {
+    const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+    const base64 = (base64String + padding)
+      .replace(/-/g, "+")
+      .replace(/_/g, "/");
+
+    const rawData = window.atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+
+    for (let i = 0; i < rawData.length; ++i) {
+      outputArray[i] = rawData.charCodeAt(i);
+    }
+    return outputArray;
+  }
+
+  // 获取订阅状态
+  getSubscriptionStatus() {
+    return {
+      isSubscribed: this.subscription !== null,
+      permission: Notification.permission,
+      subscription: this.subscription,
+    };
+  }
+}
+
+// Service Worker中处理推送事件
+self.addEventListener("push", (event) => {
+  console.log("收到推送消息");
+
+  let notificationData = {
+    title: "默认标题",
+    body: "默认消息内容",
+    icon: "/icons/icon-192x192.png",
+    badge: "/icons/badge-72x72.png",
+    tag: "default",
+    requireInteraction: false,
+    actions: [
+      {
+        action: "view",
+        title: "查看",
+        icon: "/icons/view.png",
+      },
+      {
+        action: "dismiss",
+        title: "忽略",
+        icon: "/icons/dismiss.png",
+      },
+    ],
+  };
+
+  if (event.data) {
+    try {
+      const data = event.data.json();
+      notificationData = { ...notificationData, ...data };
+    } catch (error) {
+      console.error("解析推送数据失败:", error);
+    }
+  }
+
+  event.waitUntil(
+    self.registration.showNotification(notificationData.title, notificationData)
+  );
+});
+
+// 处理通知点击事件
+self.addEventListener("notificationclick", (event) => {
+  console.log("通知被点击:", event.notification.tag);
+
+  event.notification.close();
+
+  if (event.action === "view") {
+    // 打开应用
+    event.waitUntil(clients.openWindow("/notifications"));
+  } else if (event.action === "dismiss") {
+    // 忽略通知
+    console.log("通知被忽略");
+  } else {
+    // 默认行为：打开应用
+    event.waitUntil(clients.openWindow("/"));
+  }
+});
+
+// 初始化推送通知
+const pushNotifications = new PushNotifications();
+```
+
+## PWA 性能优化
+
+### 1. 资源预加载策略
+
+```javascript
+// preload-strategy.js
+class PreloadStrategy {
+  constructor() {
+    this.criticalResources = [
+      "/static/css/critical.css",
+      "/static/js/app.js",
+      "/api/user/profile",
+    ];
+    this.initializePreloading();
+  }
+
+  initializePreloading() {
+    // 页面加载完成后预加载资源
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", () => {
+        this.preloadCriticalResources();
+      });
+    } else {
+      this.preloadCriticalResources();
+    }
+
+    // 监听网络状态变化
+    window.addEventListener("online", () => {
+      this.handleOnline();
+    });
+
+    window.addEventListener("offline", () => {
+      this.handleOffline();
+    });
+  }
+
+  // 预加载关键资源
+  async preloadCriticalResources() {
+    const promises = this.criticalResources.map((url) => {
+      return this.preloadResource(url);
+    });
+
+    try {
+      await Promise.allSettled(promises);
+      console.log("关键资源预加载完成");
+    } catch (error) {
+      console.error("预加载失败:", error);
+    }
+  }
+
+  // 预加载单个资源
+  async preloadResource(url) {
+    try {
+      // 检查缓存中是否已存在
+      const cachedResponse = await caches.match(url);
+      if (cachedResponse) {
+        console.log(`资源已缓存: ${url}`);
+        return cachedResponse;
+      }
+
+      // 发起预加载请求
+      const response = await fetch(url, {
+        mode: "cors",
+        credentials: "same-origin",
+      });
+
+      if (response.ok) {
+        // 将响应添加到缓存
+        const cache = await caches.open("preload-cache");
+        await cache.put(url, response.clone());
+        console.log(`资源预加载成功: ${url}`);
+      }
+
+      return response;
+    } catch (error) {
+      console.error(`预加载失败 ${url}:`, error);
+      throw error;
+    }
+  }
+
+  // 智能预加载（基于用户行为）
+  enableIntelligentPreloading() {
+    // 监听鼠标悬停事件
+    document.addEventListener("mouseover", (event) => {
+      const link = event.target.closest("a[href]");
+      if (link && this.shouldPreload(link.href)) {
+        this.preloadResource(link.href);
+      }
+    });
+
+    // 监听触摸开始事件（移动设备）
+    document.addEventListener("touchstart", (event) => {
+      const link = event.target.closest("a[href]");
+      if (link && this.shouldPreload(link.href)) {
+        this.preloadResource(link.href);
+      }
+    });
+
+    // 使用Intersection Observer预加载可见链接
+    this.observeVisibleLinks();
+  }
+
+  // 判断是否应该预加载
+  shouldPreload(url) {
+    try {
+      const urlObj = new URL(url, window.location.origin);
+
+      // 只预加载同源链接
+      if (urlObj.origin !== window.location.origin) {
+        return false;
+      }
+
+      // 排除某些文件类型
+      const excludeExtensions = [".pdf", ".zip", ".exe", ".dmg"];
+      if (excludeExtensions.some((ext) => urlObj.pathname.endsWith(ext))) {
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  // 观察可见链接
+  observeVisibleLinks() {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            const link = entry.target;
+            if (this.shouldPreload(link.href)) {
+              this.preloadResource(link.href);
+              observer.unobserve(link); // 预加载后停止观察
+            }
+          }
+        });
+      },
+      {
+        rootMargin: "100px", // 提前100px开始预加载
+      }
+    );
+
+    // 观察所有链接
+    document.querySelectorAll("a[href]").forEach((link) => {
+      observer.observe(link);
+    });
+  }
+
+  // 处理网络连接恢复
+  handleOnline() {
+    console.log("网络连接恢复");
+    // 重新开始预加载
+    this.preloadCriticalResources();
+  }
+
+  // 处理网络断开
+  handleOffline() {
+    console.log("网络连接断开");
+    // 可以在这里实现离线提示
+    this.showOfflineNotification();
+  }
+
+  // 显示离线通知
+  showOfflineNotification() {
+    const notification = document.createElement("div");
+    notification.className = "offline-notification";
+    notification.textContent = "网络连接已断开，正在使用缓存内容";
+    notification.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      background: #f44336;
+      color: white;
+      padding: 10px;
+      text-align: center;
+      z-index: 9999;
+    `;
+
+    document.body.appendChild(notification);
+
+    // 网络恢复时移除通知
+    const removeNotification = () => {
+      if (notification.parentNode) {
+        notification.parentNode.removeChild(notification);
+      }
+      window.removeEventListener("online", removeNotification);
+    };
+
+    window.addEventListener("online", removeNotification);
+  }
+}
+
+// 初始化预加载策略
+const preloadStrategy = new PreloadStrategy();
+preloadStrategy.enableIntelligentPreloading();
+```
+
+## 总结
+
+PWA 技术为 Web 应用带来了革命性的改变，通过 Service Worker、Web App Manifest 和现代 Web API 的结合，我们能够构建出具备原生应用体验的 Web 应用。
+
+### 核心优势
+
+1. **离线功能**：通过 Service Worker 实现复杂的缓存策略
+2. **应用安装**：用户可以将 Web 应用安装到设备主屏幕
+3. **推送通知**：实现实时的用户参与和重新激活
+4. **原生体验**：全屏显示、启动画面、应用图标等
+
+### 实施建议
+
+1. **渐进增强**：从基础功能开始，逐步添加 PWA 特性
+2. **性能优先**：优化加载速度和运行性能
+3. **用户体验**：关注离线体验和网络状态变化
+4. **测试验证**：在不同设备和网络条件下充分测试
+
+### 未来发展
+
+随着 Web 平台的不断发展，PWA 将获得更多原生能力，如文件系统访问、设备 API 集成等。掌握 PWA 技术不仅能提升当前项目的用户体验，更是为未来 Web 应用发展做好技术储备。
+
+PWA 代表了 Web 技术的未来方向，它模糊了 Web 应用和原生应用的界限，为开发者提供了构建高质量、跨平台应用的新途径。

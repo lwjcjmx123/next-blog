@@ -1,0 +1,108 @@
+---
+title: "Git工作流迁移记录：从GitLab到Gogs的实践总结"
+slug: "git-workflow-migration"
+excerpt: "记录公司Git管理工具从GitLab迁移到Gogs的过程，以及Git使用技巧的梳理总结。"
+date: "2017-09-20"
+published: true
+category: "技术"
+tags: ["Git", "版本控制"]
+author: "hailong"
+readingTime: 6
+---
+
+## 前言
+
+最近公司的服务器上的Git管理工具从GitLab迁移到了非常轻量级的Gogs上，由我主导这次代码迁移。迁移仓库地址倒是很简单，但Git工作流发生了变化，写了个wiki给同事们参考。中途自己也学了些其他的东西，趁此机会从头好好梳理一下我的Git使用习惯。
+
+## Git基本使用技巧
+
+### 1. 保存密码
+
+最开始工作的时候并不是Mac电脑，看同事们的Mac钥匙串能够自动保存Git认证信息，每次不需要手动输入很羡慕。后面经过自己研究，发现Windows下也能够实现保存认证信息，就是用如下命令：
+
+```bash
+git config --global credential.helper store
+```
+
+这样在你输入一次账号密码后，Git都会帮你存在本地，下次提交就不需要再次输入密码了，还是节省了很多时间。
+
+### 2. 设置代理
+
+有时候想在GitHub找一些开源项目clone下来学习一下，但是在天朝有时候访问GitHub的时候很慢，git clone的时候实在太慢了，所以想着能不能通过代理来访问。查看文档，发现果然有，通过如下方式：
+
+```bash
+# 设置代理
+git config --global http.proxy socks5://127.0.0.1:1080
+git config --global https.proxy socks5://127.0.0.1:1080
+
+# 取消代理
+git config --global --unset http.proxy
+git config --global --unset https.proxy
+```
+
+这样就是把HTTP和HTTPS协议的数据都设置只走代理，GitHub下载嗖嗖的快。后面两个命令是取消掉代理，偶尔碰到访问不了GitHub的时候就可以用到这个啦。
+
+### 3. 删除特定提交
+
+这种情况需要先用`git log`命令在历史记录中查找到想要删除的某次提交的commit id。我是通过提交信息来查找的，所以一定要写好提交注释，方便后面有可能需要的查询。
+
+然后执行以下命令（"commit id"替换为想要删除的提交的"commit id"）：
+
+```bash
+git rebase -i "commit id"
+```
+
+执行该条命令之后会打开一个编辑框，内容如下，列出了包含该次提交在内之后的所有提交。
+
+然后在编辑框中删除你想要删除的提交所在行，然后保存退出就好啦。进入的是vim的编辑器，输入`dd`就可以删除当前行。保存后，如果有冲突的需要解决冲突。接下来，执行以下命令，将本地仓库提交到远程库就完成了：
+
+```bash
+git push origin master -f
+```
+
+### 4. 恢复误操作删除的分支
+
+前面说的是怎么删除，这次我们来说说怎么恢复。当然恢复的前提是你这个分支的更改有提交信息，提交到本地仓库，如果你的改动没有提交到本地仓库，那就找不回来了。
+
+首先我们通过`git log -g`来找到这次提交。如果你的提交历史很靠前，用`git log`可能需要翻很久历史才能找到提交信息，我们可以通过`git reflog`来定位你的提交信息：
+
+```bash
+git reflog show | grep branchName
+git reflog show | grep "commit message"
+```
+
+reflog是Git提供的一个内部工具，用于记录对Git仓库进行的各种操作。可以使用`git reflog show`或`git log -g`命令来看到所有的操作日志。
+
+找到你最后一次提交的commit_id后，使用以下命令就可以恢复这个分支了：
+
+```bash
+git branch branchName commit_id
+```
+
+### 5. 批量删除远程分支
+
+我们公司之前的Git flow是develop/release/feature/bugfix/四个分类并行，通过GitLab的merge request来管理。所以远程仓库充斥着一堆bugfix、feature分支，去年一年产生了近两百个分支，提merge request的时候搜索起来都麻烦得要死。
+
+趁着这次迁移代码到Gogs上去，刚好Git flow也要切换到GitHub flow，以后主仓库只留develop、release两个种类的分支。bugfix、feature都建在自己的仓库里，然后提pull request到主仓库。所以主仓库没必要留那么多分支了。
+
+但是迁移的时候运维已经把整个数据库里的仓库信息导入到Gogs上，所以那么多垃圾分支也跟着一起过来了。没办法，只能手动删除了。又不想一个个的删除，就找到了个批量删除分支的方法：
+
+```bash
+git branch -r | awk -F '[/]' '/bugfix\/17/ {printf "%s/%s\n",$2,$3}' | xargs -i{} git push origin :{}
+```
+
+这个命令就是把远程的所有包含`bugfix/17`的分支全删了。
+
+## 工作流变化总结
+
+从GitLab迁移到Gogs，不仅仅是工具的变化，更重要的是工作流程的优化：
+
+- **简化分支管理**：从复杂的四分支并行模式转向更简洁的GitHub flow
+- **提高协作效率**：通过fork + pull request的方式，减少主仓库的分支污染
+- **降低维护成本**：Gogs的轻量级特性降低了服务器资源消耗
+
+## 总结
+
+Git作为现代软件开发中不可或缺的版本控制工具，掌握其高级用法能够显著提升开发效率。通过这次迁移，不仅学到了很多实用的Git技巧，也对团队协作流程有了更深的理解。希望这些经验能够帮助到其他开发者。
+
+记住，好的提交信息和规范的分支管理是团队协作的基础，这些看似简单的习惯往往能在关键时刻发挥重要作用。

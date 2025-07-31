@@ -1,0 +1,526 @@
+---
+title: "TypeScript 进阶：类型推断与高级模式实战"
+slug: "typescript-advanced-patterns"
+excerpt: "深入探索 TypeScript 的高级类型系统，掌握类型推断技巧，构建更安全、更灵活的类型定义。"
+date: "2024-03-01"
+published: true
+category: "技术"
+tags: ["TypeScript", "前端开发"]
+author: "hailong"
+readingTime: 15
+---
+
+## 引言
+
+TypeScript 的类型系统是其最强大的特性之一。随着项目复杂度的增加，我们需要更高级的类型技巧来确保代码的类型安全和开发体验。本文将深入探讨 TypeScript 的高级类型模式，包括条件类型、映射类型、模板字面量类型等，并通过实际案例展示如何在项目中应用这些技巧。
+
+## TypeScript 类型系统基础回顾
+
+### 类型系统的核心概念
+
+TypeScript 的类型系统基于结构化类型（Structural Typing），这意味着类型兼容性是基于成员的结构而不是显式声明：
+
+```typescript
+interface Point2D {
+  x: number;
+  y: number;
+}
+
+interface Point3D {
+  x: number;
+  y: number;
+  z: number;
+}
+
+// Point3D 可以赋值给 Point2D，因为它包含了 Point2D 的所有成员
+const point3D: Point3D = { x: 1, y: 2, z: 3 };
+const point2D: Point2D = point3D; // ✅ 合法
+```
+
+### 类型推断与类型收窄
+
+TypeScript 具有强大的类型推断能力：
+
+```typescript
+// 类型推断
+const message = "Hello"; // 推断为 string
+const numbers = [1, 2, 3]; // 推断为 number[]
+
+// 类型收窄
+function processValue(value: string | number) {
+  if (typeof value === "string") {
+    // 在这个分支中，value 被收窄为 string 类型
+    return value.toUpperCase();
+  }
+  // 在这个分支中，value 被收窄为 number 类型
+  return value.toFixed(2);
+}
+```
+
+## 高级类型模式
+
+### 1. 条件类型（Conditional Types）
+
+条件类型是 TypeScript 中最强大的特性之一，它允许我们根据类型关系来选择类型：
+
+```typescript
+// 基本语法：T extends U ? X : Y
+type IsString<T> = T extends string ? true : false;
+
+type Test1 = IsString<string>; // true
+type Test2 = IsString<number>; // false
+
+// 实用示例：提取函数返回类型
+type ReturnType<T> = T extends (...args: any[]) => infer R ? R : never;
+
+type FuncReturn = ReturnType<() => string>; // string
+type AsyncFuncReturn = ReturnType<() => Promise<number>>; // Promise<number>
+
+// 更复杂的条件类型：深度只读
+type DeepReadonly<T> = {
+  readonly [P in keyof T]: T[P] extends object
+    ? T[P] extends Function
+      ? T[P]
+      : DeepReadonly<T[P]>
+    : T[P];
+};
+
+interface User {
+  name: string;
+  profile: {
+    age: number;
+    hobbies: string[];
+  };
+  greet: () => void;
+}
+
+type ReadonlyUser = DeepReadonly<User>;
+// {
+//   readonly name: string;
+//   readonly profile: {
+//     readonly age: number;
+//     readonly hobbies: readonly string[];
+//   };
+//   readonly greet: () => void;
+// }
+```
+
+### 2. 映射类型（Mapped Types）
+
+映射类型允许我们基于现有类型创建新类型：
+
+```typescript
+// 基本映射类型
+type Partial<T> = {
+  [P in keyof T]?: T[P];
+};
+
+type Required<T> = {
+  [P in keyof T]-?: T[P];
+};
+
+// 高级映射类型：类型转换
+type Stringify<T> = {
+  [K in keyof T]: string;
+};
+
+interface Person {
+  name: string;
+  age: number;
+  isActive: boolean;
+}
+
+type StringifiedPerson = Stringify<Person>;
+// {
+//   name: string;
+//   age: string;
+//   isActive: string;
+// }
+
+// 条件映射：选择性转换
+type NullableKeys<T> = {
+  [K in keyof T]: T[K] extends string | number ? T[K] | null : T[K];
+};
+
+type NullablePerson = NullableKeys<Person>;
+// {
+//   name: string | null;
+//   age: number | null;
+//   isActive: boolean; // boolean 不受影响
+// }
+```
+
+### 3. 模板字面量类型（Template Literal Types）
+
+TypeScript 4.1 引入的模板字面量类型为字符串操作提供了强大的类型支持：
+
+```typescript
+// 基本模板字面量类型
+type Greeting<T extends string> = `Hello, ${T}!`;
+type WelcomeMessage = Greeting<"World">; // "Hello, World!"
+
+// 结合联合类型
+type EventName<T extends string> = `on${Capitalize<T>}`;
+type MouseEvents = EventName<"click" | "hover" | "focus">;
+// "onClick" | "onHover" | "onFocus"
+
+// 实用示例：CSS-in-JS 类型安全
+type CSSProperties = {
+  color?: string;
+  backgroundColor?: string;
+  fontSize?: string;
+  margin?: string;
+  padding?: string;
+};
+
+type CSSPropertyNames = keyof CSSProperties;
+type CSSVariableName<T extends CSSPropertyNames> = `--${T}`;
+
+type CSSVariables = {
+  [K in CSSPropertyNames as CSSVariableName<K>]?: string;
+};
+
+// 使用示例
+const cssVars: CSSVariables = {
+  "--color": "#333",
+  "--backgroundColor": "#fff",
+  "--fontSize": "16px",
+};
+
+// 路径参数提取
+type ExtractRouteParams<T extends string> =
+  T extends `${string}:${infer Param}/${infer Rest}`
+    ? { [K in Param | keyof ExtractRouteParams<Rest>]: string }
+    : T extends `${string}:${infer Param}`
+    ? { [K in Param]: string }
+    : {};
+
+type UserRouteParams = ExtractRouteParams<"/users/:userId/posts/:postId">;
+// { userId: string; postId: string }
+```
+
+## 实战案例：构建类型安全的 API 客户端
+
+让我们通过一个实际案例来展示如何运用这些高级类型技巧：
+
+```typescript
+// API 端点定义
+interface APIEndpoints {
+  "GET /users": {
+    response: User[];
+  };
+  "GET /users/:id": {
+    params: { id: string };
+    response: User;
+  };
+  "POST /users": {
+    body: CreateUserRequest;
+    response: User;
+  };
+  "PUT /users/:id": {
+    params: { id: string };
+    body: UpdateUserRequest;
+    response: User;
+  };
+  "DELETE /users/:id": {
+    params: { id: string };
+    response: void;
+  };
+}
+
+// 提取 HTTP 方法和路径
+type ExtractMethod<T extends keyof APIEndpoints> =
+  T extends `${infer Method} ${string}` ? Method : never;
+
+type ExtractPath<T extends keyof APIEndpoints> =
+  T extends `${string} ${infer Path}` ? Path : never;
+
+// 提取端点配置
+type EndpointConfig<T extends keyof APIEndpoints> = APIEndpoints[T];
+
+// 类型安全的 API 客户端
+class TypedAPIClient {
+  private baseURL: string;
+
+  constructor(baseURL: string) {
+    this.baseURL = baseURL;
+  }
+
+  async request<T extends keyof APIEndpoints>(
+    endpoint: T,
+    config: EndpointConfig<T> extends { params: infer P }
+      ? EndpointConfig<T> extends { body: infer B }
+        ? { params: P; body: B }
+        : { params: P }
+      : EndpointConfig<T> extends { body: infer B }
+      ? { body: B }
+      : {}
+  ): Promise<EndpointConfig<T> extends { response: infer R } ? R : never> {
+    const method = this.extractMethod(endpoint);
+    const path = this.extractPath(endpoint);
+
+    // 构建实际的 URL
+    let url = this.baseURL + path;
+    if ("params" in config) {
+      Object.entries(config.params as Record<string, string>).forEach(
+        ([key, value]) => {
+          url = url.replace(`:${key}`, value);
+        }
+      );
+    }
+
+    const requestConfig: RequestInit = {
+      method,
+      headers: {
+        "Content-Type": "application/json",
+      },
+    };
+
+    if ("body" in config) {
+      requestConfig.body = JSON.stringify(config.body);
+    }
+
+    const response = await fetch(url, requestConfig);
+
+    if (method === "DELETE") {
+      return undefined as any;
+    }
+
+    return response.json();
+  }
+
+  private extractMethod<T extends keyof APIEndpoints>(
+    endpoint: T
+  ): ExtractMethod<T> {
+    return endpoint.split(" ")[0] as ExtractMethod<T>;
+  }
+
+  private extractPath<T extends keyof APIEndpoints>(
+    endpoint: T
+  ): ExtractPath<T> {
+    return endpoint.split(" ")[1] as ExtractPath<T>;
+  }
+}
+
+// 使用示例
+const apiClient = new TypedAPIClient("https://api.example.com");
+
+// 类型安全的 API 调用
+async function examples() {
+  // GET /users - 不需要参数
+  const users = await apiClient.request("GET /users", {});
+  // users 的类型是 User[]
+
+  // GET /users/:id - 需要参数
+  const user = await apiClient.request("GET /users/:id", {
+    params: { id: "123" },
+  });
+  // user 的类型是 User
+
+  // POST /users - 需要 body
+  const newUser = await apiClient.request("POST /users", {
+    body: {
+      name: "John Doe",
+      email: "john@example.com",
+    },
+  });
+  // newUser 的类型是 User
+
+  // PUT /users/:id - 需要参数和 body
+  const updatedUser = await apiClient.request("PUT /users/:id", {
+    params: { id: "123" },
+    body: {
+      name: "Jane Doe",
+    },
+  });
+  // updatedUser 的类型是 User
+}
+```
+
+## 高级类型工具函数
+
+### 1. 深度合并类型
+
+```typescript
+type DeepMerge<T, U> = {
+  [K in keyof T | keyof U]: K extends keyof U
+    ? K extends keyof T
+      ? T[K] extends object
+        ? U[K] extends object
+          ? DeepMerge<T[K], U[K]>
+          : U[K]
+        : U[K]
+      : U[K]
+    : K extends keyof T
+    ? T[K]
+    : never;
+};
+
+type Config1 = {
+  api: {
+    baseURL: string;
+    timeout: number;
+  };
+  features: {
+    auth: boolean;
+  };
+};
+
+type Config2 = {
+  api: {
+    retries: number;
+  };
+  features: {
+    logging: boolean;
+  };
+};
+
+type MergedConfig = DeepMerge<Config1, Config2>;
+// {
+//   api: {
+//     baseURL: string;
+//     timeout: number;
+//     retries: number;
+//   };
+//   features: {
+//     auth: boolean;
+//     logging: boolean;
+//   };
+// }
+```
+
+### 2. 类型安全的事件系统
+
+```typescript
+// 事件映射定义
+interface EventMap {
+  "user:login": { userId: string; timestamp: Date };
+  "user:logout": { userId: string };
+  "order:created": { orderId: string; amount: number };
+  "order:cancelled": { orderId: string; reason: string };
+}
+
+// 事件发射器类型
+type EventEmitter<T extends Record<string, any>> = {
+  on<K extends keyof T>(event: K, listener: (data: T[K]) => void): void;
+  off<K extends keyof T>(event: K, listener: (data: T[K]) => void): void;
+  emit<K extends keyof T>(event: K, data: T[K]): void;
+};
+
+// 实现
+class TypedEventEmitter<T extends Record<string, any>>
+  implements EventEmitter<T>
+{
+  private listeners: Map<keyof T, Set<Function>> = new Map();
+
+  on<K extends keyof T>(event: K, listener: (data: T[K]) => void): void {
+    if (!this.listeners.has(event)) {
+      this.listeners.set(event, new Set());
+    }
+    this.listeners.get(event)!.add(listener);
+  }
+
+  off<K extends keyof T>(event: K, listener: (data: T[K]) => void): void {
+    const eventListeners = this.listeners.get(event);
+    if (eventListeners) {
+      eventListeners.delete(listener);
+    }
+  }
+
+  emit<K extends keyof T>(event: K, data: T[K]): void {
+    const eventListeners = this.listeners.get(event);
+    if (eventListeners) {
+      eventListeners.forEach((listener) => listener(data));
+    }
+  }
+}
+
+// 使用示例
+const eventEmitter = new TypedEventEmitter<EventMap>();
+
+// 类型安全的事件监听
+eventEmitter.on("user:login", (data) => {
+  // data 的类型是 { userId: string; timestamp: Date }
+  console.log(`User ${data.userId} logged in at ${data.timestamp}`);
+});
+
+// 类型安全的事件发射
+eventEmitter.emit("user:login", {
+  userId: "123",
+  timestamp: new Date(),
+});
+
+// 编译时错误：类型不匹配
+// eventEmitter.emit('user:login', { userId: 123 }); // ❌ Error
+```
+
+## 性能考虑与最佳实践
+
+### 1. 避免过度复杂的类型
+
+虽然 TypeScript 的类型系统很强大，但过度复杂的类型可能会影响编译性能：
+
+```typescript
+// ❌ 避免：过度嵌套的条件类型
+type OverlyComplex<T> = T extends string
+  ? T extends `${infer A}${infer B}`
+    ? B extends `${infer C}${infer D}`
+      ? C extends `${infer E}${infer F}`
+        ? // ... 更多嵌套
+        : never
+      : never
+    : never
+  : never;
+
+// ✅ 推荐：分步骤构建类型
+type ExtractFirst<T extends string> = T extends `${infer First}${string}` ? First : never;
+type ExtractRest<T extends string> = T extends `${string}${infer Rest}` ? Rest : never;
+type ProcessString<T extends string> = {
+  first: ExtractFirst<T>;
+  rest: ExtractRest<T>;
+};
+```
+
+### 2. 合理使用类型断言
+
+```typescript
+// ❌ 避免：不安全的类型断言
+const userInput = getUserInput() as User;
+
+// ✅ 推荐：类型守卫
+function isUser(obj: any): obj is User {
+  return obj && typeof obj.name === "string" && typeof obj.email === "string";
+}
+
+const userInput = getUserInput();
+if (isUser(userInput)) {
+  // 在这里 userInput 被安全地收窄为 User 类型
+  console.log(userInput.name);
+}
+```
+
+### 3. 利用工具类型
+
+```typescript
+// 使用内置工具类型
+type UserUpdate = Partial<Pick<User, "name" | "email">>;
+type UserKeys = keyof User;
+type RequiredUser = Required<User>;
+
+// 组合工具类型
+type CreateUserRequest = Omit<User, "id" | "createdAt" | "updatedAt">;
+type UpdateUserRequest = Partial<CreateUserRequest>;
+```
+
+## 总结
+
+TypeScript 的高级类型系统为我们提供了强大的工具来构建类型安全的应用程序。通过掌握条件类型、映射类型、模板字面量类型等高级特性，我们可以：
+
+1. **提高代码安全性**：在编译时捕获更多潜在错误
+2. **改善开发体验**：提供更好的 IDE 支持和自动补全
+3. **增强代码可维护性**：类型定义即文档，减少理解成本
+4. **构建更灵活的 API**：类型安全的同时保持灵活性
+
+在实际项目中应用这些技巧时，要注意平衡类型安全性和复杂度，避免过度工程化。记住，类型系统是为了服务业务逻辑，而不是成为负担。
+
+随着 TypeScript 的不断发展，新的类型特性还在不断加入。保持学习和实践，让类型系统成为你开发高质量 JavaScript 应用的得力助手。

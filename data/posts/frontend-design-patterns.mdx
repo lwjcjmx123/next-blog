@@ -1,0 +1,1097 @@
+---
+title: "前端设计模式实战：构建可维护的JavaScript应用"
+slug: "frontend-design-patterns"
+excerpt: "深入探讨经典设计模式在前端开发中的应用，通过实际案例学习如何编写更优雅、可维护的代码。"
+date: "2024-04-01"
+published: true
+category: "技术"
+tags: ["设计模式", "JavaScript", "架构设计"]
+author: "hailong"
+readingTime: 16
+---
+
+## 引言
+
+设计模式是软件工程中经过验证的解决方案，它们为常见的设计问题提供了可重用的模板。在前端开发中，合理运用设计模式可以让代码更加清晰、可维护和可扩展。本文将通过实际案例深入探讨几种在前端开发中最有用的设计模式，帮助你写出更优雅的代码。
+
+## 创建型模式
+
+### 1. 单例模式（Singleton Pattern）
+
+单例模式确保一个类只有一个实例，并提供全局访问点。在前端开发中，单例模式常用于管理全局状态、配置对象或工具类。
+
+#### 基础实现
+
+```javascript
+// ES6 类实现单例模式
+class ConfigManager {
+  constructor() {
+    if (ConfigManager.instance) {
+      return ConfigManager.instance;
+    }
+    
+    this.config = {
+      apiUrl: 'https://api.example.com',
+      timeout: 5000,
+      retries: 3
+    };
+    
+    ConfigManager.instance = this;
+    return this;
+  }
+  
+  getConfig(key) {
+    return key ? this.config[key] : this.config;
+  }
+  
+  setConfig(key, value) {
+    if (typeof key === 'object') {
+      this.config = { ...this.config, ...key };
+    } else {
+      this.config[key] = value;
+    }
+  }
+}
+
+// 使用示例
+const config1 = new ConfigManager();
+const config2 = new ConfigManager();
+
+console.log(config1 === config2); // true
+
+config1.setConfig('apiUrl', 'https://new-api.example.com');
+console.log(config2.getConfig('apiUrl')); // 'https://new-api.example.com'
+```
+
+#### 模块化单例
+
+```javascript
+// 使用模块模式实现单例
+const Logger = (() => {
+  let instance;
+  let logs = [];
+  
+  function createInstance() {
+    return {
+      log(message, level = 'info') {
+        const timestamp = new Date().toISOString();
+        const logEntry = { timestamp, message, level };
+        
+        logs.push(logEntry);
+        console.log(`[${level.toUpperCase()}] ${timestamp}: ${message}`);
+        
+        // 发送到远程日志服务
+        this.sendToRemote(logEntry);
+      },
+      
+      getLogs() {
+        return [...logs];
+      },
+      
+      clearLogs() {
+        logs = [];
+      },
+      
+      sendToRemote(logEntry) {
+        // 模拟发送到远程服务
+        if (typeof window !== 'undefined' && window.fetch) {
+          fetch('/api/logs', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(logEntry)
+          }).catch(err => console.error('Failed to send log:', err));
+        }
+      }
+    };
+  }
+  
+  return {
+    getInstance() {
+      if (!instance) {
+        instance = createInstance();
+      }
+      return instance;
+    }
+  };
+})();
+
+// 使用示例
+const logger1 = Logger.getInstance();
+const logger2 = Logger.getInstance();
+
+logger1.log('Application started');
+logger2.log('User logged in', 'info');
+
+console.log(logger1 === logger2); // true
+console.log(logger1.getLogs()); // 包含两条日志
+```
+
+### 2. 工厂模式（Factory Pattern）
+
+工厂模式用于创建对象，而不需要指定确切的类。这在需要根据条件创建不同类型对象时特别有用。
+
+#### 简单工厂
+
+```javascript
+// 表单验证器工厂
+class Validator {
+  validate(value) {
+    throw new Error('validate method must be implemented');
+  }
+}
+
+class EmailValidator extends Validator {
+  validate(email) {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return {
+      isValid: emailRegex.test(email),
+      message: emailRegex.test(email) ? '' : 'Invalid email format'
+    };
+  }
+}
+
+class PhoneValidator extends Validator {
+  validate(phone) {
+    const phoneRegex = /^\+?[1-9]\d{1,14}$/;
+    return {
+      isValid: phoneRegex.test(phone),
+      message: phoneRegex.test(phone) ? '' : 'Invalid phone number'
+    };
+  }
+}
+
+class PasswordValidator extends Validator {
+  validate(password) {
+    const minLength = 8;
+    const hasUpperCase = /[A-Z]/.test(password);
+    const hasLowerCase = /[a-z]/.test(password);
+    const hasNumbers = /\d/.test(password);
+    const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(password);
+    
+    const isValid = password.length >= minLength && 
+                   hasUpperCase && hasLowerCase && 
+                   hasNumbers && hasSpecialChar;
+    
+    return {
+      isValid,
+      message: isValid ? '' : 'Password must be at least 8 characters with uppercase, lowercase, number and special character'
+    };
+  }
+}
+
+// 验证器工厂
+class ValidatorFactory {
+  static createValidator(type) {
+    switch (type) {
+      case 'email':
+        return new EmailValidator();
+      case 'phone':
+        return new PhoneValidator();
+      case 'password':
+        return new PasswordValidator();
+      default:
+        throw new Error(`Unknown validator type: ${type}`);
+    }
+  }
+}
+
+// 使用示例
+const emailValidator = ValidatorFactory.createValidator('email');
+const result = emailValidator.validate('user@example.com');
+console.log(result); // { isValid: true, message: '' }
+```
+
+#### 抽象工厂
+
+```javascript
+// UI 组件抽象工厂
+class UIComponentFactory {
+  createButton() {
+    throw new Error('createButton method must be implemented');
+  }
+  
+  createInput() {
+    throw new Error('createInput method must be implemented');
+  }
+  
+  createModal() {
+    throw new Error('createModal method must be implemented');
+  }
+}
+
+// Material Design 工厂
+class MaterialUIFactory extends UIComponentFactory {
+  createButton() {
+    return {
+      type: 'material-button',
+      render() {
+        return `<button class="mdc-button mdc-button--raised">
+          <span class="mdc-button__label">Click me</span>
+        </button>`;
+      },
+      addRippleEffect() {
+        console.log('Adding material ripple effect');
+      }
+    };
+  }
+  
+  createInput() {
+    return {
+      type: 'material-input',
+      render() {
+        return `<div class="mdc-text-field mdc-text-field--filled">
+          <input class="mdc-text-field__input" type="text">
+          <div class="mdc-line-ripple"></div>
+        </div>`;
+      }
+    };
+  }
+  
+  createModal() {
+    return {
+      type: 'material-modal',
+      render() {
+        return `<div class="mdc-dialog">
+          <div class="mdc-dialog__container">
+            <div class="mdc-dialog__surface"></div>
+          </div>
+        </div>`;
+      }
+    };
+  }
+}
+
+// Bootstrap 工厂
+class BootstrapUIFactory extends UIComponentFactory {
+  createButton() {
+    return {
+      type: 'bootstrap-button',
+      render() {
+        return `<button type="button" class="btn btn-primary">Click me</button>`;
+      }
+    };
+  }
+  
+  createInput() {
+    return {
+      type: 'bootstrap-input',
+      render() {
+        return `<div class="form-group">
+          <input type="text" class="form-control">
+        </div>`;
+      }
+    };
+  }
+  
+  createModal() {
+    return {
+      type: 'bootstrap-modal',
+      render() {
+        return `<div class="modal fade" tabindex="-1">
+          <div class="modal-dialog">
+            <div class="modal-content"></div>
+          </div>
+        </div>`;
+      }
+    };
+  }
+}
+
+// 工厂选择器
+class UIFactorySelector {
+  static getFactory(theme) {
+    switch (theme) {
+      case 'material':
+        return new MaterialUIFactory();
+      case 'bootstrap':
+        return new BootstrapUIFactory();
+      default:
+        throw new Error(`Unknown UI theme: ${theme}`);
+    }
+  }
+}
+
+// 使用示例
+const factory = UIFactorySelector.getFactory('material');
+const button = factory.createButton();
+const input = factory.createInput();
+
+console.log(button.render());
+console.log(input.render());
+```
+
+## 结构型模式
+
+### 3. 适配器模式（Adapter Pattern）
+
+适配器模式允许不兼容的接口协同工作，在前端开发中常用于整合第三方库或API。
+
+```javascript
+// 旧的支付接口
+class OldPaymentService {
+  makePayment(amount, currency) {
+    return {
+      success: true,
+      transactionId: Math.random().toString(36).substr(2, 9),
+      amount: amount,
+      currency: currency,
+      timestamp: Date.now()
+    };
+  }
+}
+
+// 新的支付接口
+class NewPaymentService {
+  processPayment(paymentData) {
+    return {
+      status: 'completed',
+      id: Math.random().toString(36).substr(2, 9),
+      total: paymentData.amount,
+      currencyCode: paymentData.currency,
+      processedAt: new Date().toISOString()
+    };
+  }
+}
+
+// 支付适配器
+class PaymentAdapter {
+  constructor(paymentService, serviceType) {
+    this.paymentService = paymentService;
+    this.serviceType = serviceType;
+  }
+  
+  pay(amount, currency) {
+    if (this.serviceType === 'old') {
+      const result = this.paymentService.makePayment(amount, currency);
+      return this.normalizeOldResponse(result);
+    } else if (this.serviceType === 'new') {
+      const result = this.paymentService.processPayment({ amount, currency });
+      return this.normalizeNewResponse(result);
+    }
+    
+    throw new Error('Unknown payment service type');
+  }
+  
+  normalizeOldResponse(response) {
+    return {
+      success: response.success,
+      transactionId: response.transactionId,
+      amount: response.amount,
+      currency: response.currency,
+      timestamp: new Date(response.timestamp).toISOString()
+    };
+  }
+  
+  normalizeNewResponse(response) {
+    return {
+      success: response.status === 'completed',
+      transactionId: response.id,
+      amount: response.total,
+      currency: response.currencyCode,
+      timestamp: response.processedAt
+    };
+  }
+}
+
+// 使用示例
+const oldService = new OldPaymentService();
+const newService = new NewPaymentService();
+
+const oldAdapter = new PaymentAdapter(oldService, 'old');
+const newAdapter = new PaymentAdapter(newService, 'new');
+
+// 统一的接口调用
+console.log(oldAdapter.pay(100, 'USD'));
+console.log(newAdapter.pay(100, 'USD'));
+```
+
+### 4. 装饰器模式（Decorator Pattern）
+
+装饰器模式允许在不修改原对象的情况下动态添加功能。
+
+```javascript
+// 基础 HTTP 客户端
+class HttpClient {
+  async request(url, options = {}) {
+    const response = await fetch(url, options);
+    return response.json();
+  }
+}
+
+// 装饰器基类
+class HttpClientDecorator {
+  constructor(httpClient) {
+    this.httpClient = httpClient;
+  }
+  
+  async request(url, options = {}) {
+    return this.httpClient.request(url, options);
+  }
+}
+
+// 认证装饰器
+class AuthDecorator extends HttpClientDecorator {
+  constructor(httpClient, token) {
+    super(httpClient);
+    this.token = token;
+  }
+  
+  async request(url, options = {}) {
+    const authOptions = {
+      ...options,
+      headers: {
+        ...options.headers,
+        'Authorization': `Bearer ${this.token}`
+      }
+    };
+    
+    return super.request(url, authOptions);
+  }
+}
+
+// 重试装饰器
+class RetryDecorator extends HttpClientDecorator {
+  constructor(httpClient, maxRetries = 3, delay = 1000) {
+    super(httpClient);
+    this.maxRetries = maxRetries;
+    this.delay = delay;
+  }
+  
+  async request(url, options = {}) {
+    let lastError;
+    
+    for (let i = 0; i <= this.maxRetries; i++) {
+      try {
+        return await super.request(url, options);
+      } catch (error) {
+        lastError = error;
+        
+        if (i < this.maxRetries) {
+          await this.sleep(this.delay * Math.pow(2, i)); // 指数退避
+        }
+      }
+    }
+    
+    throw lastError;
+  }
+  
+  sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+}
+
+// 缓存装饰器
+class CacheDecorator extends HttpClientDecorator {
+  constructor(httpClient, ttl = 300000) { // 5分钟默认TTL
+    super(httpClient);
+    this.cache = new Map();
+    this.ttl = ttl;
+  }
+  
+  async request(url, options = {}) {
+    const cacheKey = this.getCacheKey(url, options);
+    const cached = this.cache.get(cacheKey);
+    
+    if (cached && Date.now() - cached.timestamp < this.ttl) {
+      console.log('Cache hit for:', url);
+      return cached.data;
+    }
+    
+    const data = await super.request(url, options);
+    
+    this.cache.set(cacheKey, {
+      data,
+      timestamp: Date.now()
+    });
+    
+    return data;
+  }
+  
+  getCacheKey(url, options) {
+    return `${url}_${JSON.stringify(options)}`;
+  }
+  
+  clearCache() {
+    this.cache.clear();
+  }
+}
+
+// 日志装饰器
+class LoggingDecorator extends HttpClientDecorator {
+  async request(url, options = {}) {
+    const startTime = Date.now();
+    console.log(`[HTTP] Starting request to ${url}`);
+    
+    try {
+      const result = await super.request(url, options);
+      const duration = Date.now() - startTime;
+      console.log(`[HTTP] Request to ${url} completed in ${duration}ms`);
+      return result;
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      console.error(`[HTTP] Request to ${url} failed after ${duration}ms:`, error);
+      throw error;
+    }
+  }
+}
+
+// 使用示例 - 组合多个装饰器
+let client = new HttpClient();
+client = new AuthDecorator(client, 'your-auth-token');
+client = new RetryDecorator(client, 3, 1000);
+client = new CacheDecorator(client, 300000);
+client = new LoggingDecorator(client);
+
+// 现在客户端具有认证、重试、缓存和日志功能
+client.request('https://api.example.com/users')
+  .then(data => console.log('Users:', data))
+  .catch(error => console.error('Error:', error));
+```
+
+## 行为型模式
+
+### 5. 观察者模式（Observer Pattern）
+
+观察者模式定义了对象间的一对多依赖关系，当一个对象状态改变时，所有依赖它的对象都会得到通知。
+
+```javascript
+// 事件发射器实现观察者模式
+class EventEmitter {
+  constructor() {
+    this.events = new Map();
+  }
+  
+  on(event, listener) {
+    if (!this.events.has(event)) {
+      this.events.set(event, new Set());
+    }
+    
+    this.events.get(event).add(listener);
+    
+    // 返回取消订阅函数
+    return () => this.off(event, listener);
+  }
+  
+  off(event, listener) {
+    const listeners = this.events.get(event);
+    if (listeners) {
+      listeners.delete(listener);
+      if (listeners.size === 0) {
+        this.events.delete(event);
+      }
+    }
+  }
+  
+  emit(event, ...args) {
+    const listeners = this.events.get(event);
+    if (listeners) {
+      listeners.forEach(listener => {
+        try {
+          listener(...args);
+        } catch (error) {
+          console.error(`Error in event listener for ${event}:`, error);
+        }
+      });
+    }
+  }
+  
+  once(event, listener) {
+    const onceWrapper = (...args) => {
+      listener(...args);
+      this.off(event, onceWrapper);
+    };
+    
+    this.on(event, onceWrapper);
+  }
+  
+  removeAllListeners(event) {
+    if (event) {
+      this.events.delete(event);
+    } else {
+      this.events.clear();
+    }
+  }
+}
+
+// 购物车状态管理示例
+class ShoppingCart extends EventEmitter {
+  constructor() {
+    super();
+    this.items = [];
+    this.total = 0;
+  }
+  
+  addItem(item) {
+    this.items.push(item);
+    this.updateTotal();
+    this.emit('itemAdded', item, this.items);
+    this.emit('cartChanged', this.getState());
+  }
+  
+  removeItem(itemId) {
+    const index = this.items.findIndex(item => item.id === itemId);
+    if (index !== -1) {
+      const removedItem = this.items.splice(index, 1)[0];
+      this.updateTotal();
+      this.emit('itemRemoved', removedItem, this.items);
+      this.emit('cartChanged', this.getState());
+    }
+  }
+  
+  updateQuantity(itemId, quantity) {
+    const item = this.items.find(item => item.id === itemId);
+    if (item) {
+      const oldQuantity = item.quantity;
+      item.quantity = quantity;
+      this.updateTotal();
+      this.emit('quantityChanged', item, oldQuantity, quantity);
+      this.emit('cartChanged', this.getState());
+    }
+  }
+  
+  clear() {
+    const oldItems = [...this.items];
+    this.items = [];
+    this.total = 0;
+    this.emit('cartCleared', oldItems);
+    this.emit('cartChanged', this.getState());
+  }
+  
+  updateTotal() {
+    this.total = this.items.reduce((sum, item) => {
+      return sum + (item.price * item.quantity);
+    }, 0);
+  }
+  
+  getState() {
+    return {
+      items: [...this.items],
+      total: this.total,
+      itemCount: this.items.length
+    };
+  }
+}
+
+// UI 组件订阅购物车变化
+class CartDisplay {
+  constructor(cart) {
+    this.cart = cart;
+    this.element = document.getElementById('cart-display');
+    this.setupListeners();
+  }
+  
+  setupListeners() {
+    this.cart.on('cartChanged', (state) => {
+      this.render(state);
+    });
+    
+    this.cart.on('itemAdded', (item) => {
+      this.showNotification(`Added ${item.name} to cart`);
+    });
+    
+    this.cart.on('itemRemoved', (item) => {
+      this.showNotification(`Removed ${item.name} from cart`);
+    });
+  }
+  
+  render(state) {
+    this.element.innerHTML = `
+      <div class="cart-summary">
+        <h3>Shopping Cart (${state.itemCount} items)</h3>
+        <div class="total">Total: $${state.total.toFixed(2)}</div>
+        <div class="items">
+          ${state.items.map(item => `
+            <div class="cart-item">
+              <span>${item.name}</span>
+              <span>$${item.price} x ${item.quantity}</span>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `;
+  }
+  
+  showNotification(message) {
+    // 显示通知逻辑
+    console.log('Notification:', message);
+  }
+}
+
+// 使用示例
+const cart = new ShoppingCart();
+const cartDisplay = new CartDisplay(cart);
+
+// 添加商品
+cart.addItem({ id: 1, name: 'iPhone', price: 999, quantity: 1 });
+cart.addItem({ id: 2, name: 'MacBook', price: 1999, quantity: 1 });
+
+// 更新数量
+cart.updateQuantity(1, 2);
+
+// 移除商品
+cart.removeItem(2);
+```
+
+### 6. 策略模式（Strategy Pattern）
+
+策略模式定义了一系列算法，并使它们可以互换使用。
+
+```javascript
+// 排序策略
+class SortStrategy {
+  sort(data) {
+    throw new Error('sort method must be implemented');
+  }
+}
+
+class BubbleSortStrategy extends SortStrategy {
+  sort(data) {
+    const arr = [...data];
+    const n = arr.length;
+    
+    for (let i = 0; i < n - 1; i++) {
+      for (let j = 0; j < n - i - 1; j++) {
+        if (arr[j] > arr[j + 1]) {
+          [arr[j], arr[j + 1]] = [arr[j + 1], arr[j]];
+        }
+      }
+    }
+    
+    return arr;
+  }
+}
+
+class QuickSortStrategy extends SortStrategy {
+  sort(data) {
+    const arr = [...data];
+    return this.quickSort(arr, 0, arr.length - 1);
+  }
+  
+  quickSort(arr, low, high) {
+    if (low < high) {
+      const pi = this.partition(arr, low, high);
+      this.quickSort(arr, low, pi - 1);
+      this.quickSort(arr, pi + 1, high);
+    }
+    return arr;
+  }
+  
+  partition(arr, low, high) {
+    const pivot = arr[high];
+    let i = low - 1;
+    
+    for (let j = low; j < high; j++) {
+      if (arr[j] < pivot) {
+        i++;
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+    }
+    
+    [arr[i + 1], arr[high]] = [arr[high], arr[i + 1]];
+    return i + 1;
+  }
+}
+
+class MergeSortStrategy extends SortStrategy {
+  sort(data) {
+    const arr = [...data];
+    return this.mergeSort(arr);
+  }
+  
+  mergeSort(arr) {
+    if (arr.length <= 1) return arr;
+    
+    const mid = Math.floor(arr.length / 2);
+    const left = this.mergeSort(arr.slice(0, mid));
+    const right = this.mergeSort(arr.slice(mid));
+    
+    return this.merge(left, right);
+  }
+  
+  merge(left, right) {
+    const result = [];
+    let i = 0, j = 0;
+    
+    while (i < left.length && j < right.length) {
+      if (left[i] <= right[j]) {
+        result.push(left[i++]);
+      } else {
+        result.push(right[j++]);
+      }
+    }
+    
+    return result.concat(left.slice(i)).concat(right.slice(j));
+  }
+}
+
+// 排序上下文
+class DataSorter {
+  constructor(strategy) {
+    this.strategy = strategy;
+  }
+  
+  setStrategy(strategy) {
+    this.strategy = strategy;
+  }
+  
+  sort(data) {
+    const startTime = performance.now();
+    const result = this.strategy.sort(data);
+    const endTime = performance.now();
+    
+    console.log(`Sorting completed in ${endTime - startTime} milliseconds`);
+    return result;
+  }
+}
+
+// 动态策略选择
+class SortStrategyFactory {
+  static getStrategy(dataSize) {
+    if (dataSize < 10) {
+      return new BubbleSortStrategy(); // 小数据集使用冒泡排序
+    } else if (dataSize < 1000) {
+      return new QuickSortStrategy(); // 中等数据集使用快速排序
+    } else {
+      return new MergeSortStrategy(); // 大数据集使用归并排序
+    }
+  }
+}
+
+// 使用示例
+const data = [64, 34, 25, 12, 22, 11, 90];
+const sorter = new DataSorter(new QuickSortStrategy());
+
+console.log('Original:', data);
+console.log('Sorted:', sorter.sort(data));
+
+// 根据数据大小自动选择策略
+const largeData = Array.from({ length: 1000 }, () => Math.floor(Math.random() * 1000));
+const autoStrategy = SortStrategyFactory.getStrategy(largeData.length);
+sorter.setStrategy(autoStrategy);
+
+const sortedLargeData = sorter.sort(largeData);
+console.log('Large data sorted');
+```
+
+### 7. 命令模式（Command Pattern）
+
+命令模式将请求封装为对象，从而允许你参数化客户端、队列请求、记录请求日志以及支持撤销操作。
+
+```javascript
+// 命令接口
+class Command {
+  execute() {
+    throw new Error('execute method must be implemented');
+  }
+  
+  undo() {
+    throw new Error('undo method must be implemented');
+  }
+}
+
+// 文本编辑器
+class TextEditor {
+  constructor() {
+    this.content = '';
+    this.cursor = 0;
+  }
+  
+  insertText(text, position = this.cursor) {
+    this.content = this.content.slice(0, position) + text + this.content.slice(position);
+    this.cursor = position + text.length;
+  }
+  
+  deleteText(length, position = this.cursor - length) {
+    const deleted = this.content.slice(position, position + length);
+    this.content = this.content.slice(0, position) + this.content.slice(position + length);
+    this.cursor = position;
+    return deleted;
+  }
+  
+  getContent() {
+    return this.content;
+  }
+  
+  setCursor(position) {
+    this.cursor = Math.max(0, Math.min(position, this.content.length));
+  }
+}
+
+// 插入文本命令
+class InsertTextCommand extends Command {
+  constructor(editor, text, position) {
+    super();
+    this.editor = editor;
+    this.text = text;
+    this.position = position;
+  }
+  
+  execute() {
+    this.editor.insertText(this.text, this.position);
+  }
+  
+  undo() {
+    this.editor.deleteText(this.text.length, this.position);
+  }
+}
+
+// 删除文本命令
+class DeleteTextCommand extends Command {
+  constructor(editor, length, position) {
+    super();
+    this.editor = editor;
+    this.length = length;
+    this.position = position;
+    this.deletedText = '';
+  }
+  
+  execute() {
+    this.deletedText = this.editor.deleteText(this.length, this.position);
+  }
+  
+  undo() {
+    this.editor.insertText(this.deletedText, this.position);
+  }
+}
+
+// 命令管理器（支持撤销/重做）
+class CommandManager {
+  constructor() {
+    this.history = [];
+    this.currentIndex = -1;
+  }
+  
+  executeCommand(command) {
+    // 移除当前位置之后的所有命令
+    this.history = this.history.slice(0, this.currentIndex + 1);
+    
+    // 执行命令
+    command.execute();
+    
+    // 添加到历史记录
+    this.history.push(command);
+    this.currentIndex++;
+  }
+  
+  undo() {
+    if (this.canUndo()) {
+      const command = this.history[this.currentIndex];
+      command.undo();
+      this.currentIndex--;
+      return true;
+    }
+    return false;
+  }
+  
+  redo() {
+    if (this.canRedo()) {
+      this.currentIndex++;
+      const command = this.history[this.currentIndex];
+      command.execute();
+      return true;
+    }
+    return false;
+  }
+  
+  canUndo() {
+    return this.currentIndex >= 0;
+  }
+  
+  canRedo() {
+    return this.currentIndex < this.history.length - 1;
+  }
+  
+  getHistory() {
+    return this.history.map((command, index) => ({
+      index,
+      type: command.constructor.name,
+      isCurrent: index === this.currentIndex
+    }));
+  }
+}
+
+// 宏命令（组合命令）
+class MacroCommand extends Command {
+  constructor(commands) {
+    super();
+    this.commands = commands;
+  }
+  
+  execute() {
+    this.commands.forEach(command => command.execute());
+  }
+  
+  undo() {
+    // 逆序撤销
+    for (let i = this.commands.length - 1; i >= 0; i--) {
+      this.commands[i].undo();
+    }
+  }
+}
+
+// 使用示例
+const editor = new TextEditor();
+const commandManager = new CommandManager();
+
+// 执行一系列编辑操作
+const insertHello = new InsertTextCommand(editor, 'Hello ', 0);
+const insertWorld = new InsertTextCommand(editor, 'World!', 6);
+const deleteExclamation = new DeleteTextCommand(editor, 1, 11);
+
+commandManager.executeCommand(insertHello);
+console.log('After insert "Hello ":', editor.getContent()); // "Hello "
+
+commandManager.executeCommand(insertWorld);
+console.log('After insert "World!":', editor.getContent()); // "Hello World!"
+
+commandManager.executeCommand(deleteExclamation);
+console.log('After delete "!":', editor.getContent()); // "Hello World"
+
+// 撤销操作
+commandManager.undo();
+console.log('After undo:', editor.getContent()); // "Hello World!"
+
+commandManager.undo();
+console.log('After undo:', editor.getContent()); // "Hello "
+
+// 重做操作
+commandManager.redo();
+console.log('After redo:', editor.getContent()); // "Hello World!"
+
+// 宏命令示例
+const macroCommand = new MacroCommand([
+  new InsertTextCommand(editor, ' How', 12),
+  new InsertTextCommand(editor, ' are', 16),
+  new InsertTextCommand(editor, ' you?', 20)
+]);
+
+commandManager.executeCommand(macroCommand);
+console.log('After macro command:', editor.getContent()); // "Hello World! How are you?"
+
+commandManager.undo();
+console.log('After undo macro:', editor.getContent()); // "Hello World!"
+```
+
+## 总结
+
+设计模式为前端开发提供了经过验证的解决方案，帮助我们写出更加清晰、可维护和可扩展的代码。在实际应用中，需要注意：
+
+### 选择合适的模式
+
+1. **单例模式**：适用于全局配置、日志管理、缓存等场景
+2. **工厂模式**：适用于需要根据条件创建不同对象的场景
+3. **适配器模式**：适用于整合第三方库或遗留代码
+4. **装饰器模式**：适用于动态添加功能，如中间件、插件系统
+5. **观察者模式**：适用于事件系统、状态管理
+6. **策略模式**：适用于算法选择、表单验证、主题切换
+7. **命令模式**：适用于撤销/重做、操作记录、批处理
+
+### 最佳实践
+
+1. **不要过度设计**：只在真正需要时使用设计模式
+2. **保持简单**：优先选择简单直接的解决方案
+3. **考虑性能**：某些模式可能带来额外的性能开销
+4. **团队约定**：确保团队成员都理解所使用的模式
+5. **文档化**：为复杂的模式实现提供清晰的文档
+
+设计模式不是银弹，但它们为我们提供了一套通用的词汇和经过验证的解决方案。合理运用这些模式，可以让我们的代码更加优雅和专业。
