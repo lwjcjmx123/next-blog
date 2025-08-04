@@ -1,0 +1,956 @@
+---
+title: "多平台SDK集成：微信、钉钉、Hybrid App统一解决方案"
+slug: "multi-platform-sdk-integration"
+excerpt: "设计和实现跨平台SDK架构，实现代码复用和统一API接口"
+published: true
+date: "2024-01-17"
+category: "前端架构"
+tags: ["SDK", "多平台", "微信", "钉钉", "Hybrid"]
+author: "Long"
+readingTime: "12分钟"
+---
+
+## 概述
+
+在移动互联网时代，应用需要同时支持微信小程序、钉钉小程序和 Hybrid App 等多个平台。本文介绍如何设计一套统一的 SDK 架构，通过适配器模式和平台抽象，实现代码复用和 API 统一。
+
+## 设计原则
+
+### 核心理念
+
+- **平台抽象**: 抽象出通用的 API 接口，屏蔽平台差异
+- **适配器模式**: 为每个平台实现专门的适配器
+- **插件架构**: 支持功能模块的按需加载
+- **配置驱动**: 通过配置文件管理平台特性
+- **渐进增强**: 优雅降级，保证基础功能可用
+
+### 架构图
+
+<ArchitectureDiagram
+  title="多平台SDK集成架构"
+  layers={[
+    {
+      name: "应用层",
+      color: "#3b82f6",
+      components: ["业务逻辑", "组件库", "状态管理", "路由管理"],
+    },
+    {
+      name: "统一API层",
+      color: "#10b981",
+      components: ["网络请求", "数据存储", "设备能力", "UI组件"],
+    },
+    {
+      name: "适配器层",
+      color: "#8b5cf6",
+      components: ["微信适配器", "钉钉适配器", "Hybrid适配器", "Web适配器"],
+    },
+    {
+      name: "平台层",
+      color: "#f59e0b",
+      components: ["微信小程序", "钉钉小程序", "Hybrid App", "Web浏览器"],
+    },
+  ]}
+/>
+
+## 核心架构
+
+### 主 SDK 类
+
+```javascript
+// MultiPlatformSDK.js
+class MultiPlatformSDK {
+  constructor(config = {}) {
+    this.config = config;
+    this.platform = this.detectPlatform();
+    this.adapter = null;
+    this.modules = new Map();
+
+    this.init();
+  }
+
+  /**
+   * 平台检测
+   */
+  detectPlatform() {
+    // 微信环境检测
+    if (typeof wx !== "undefined" && wx.getSystemInfo) {
+      return "wechat";
+    }
+
+    // 钉钉环境检测
+    if (typeof dd !== "undefined" && dd.getSystemInfo) {
+      return "dingtalk";
+    }
+
+    // Hybrid App检测
+    if (window.JSBridge || window.webkit?.messageHandlers) {
+      return "hybrid";
+    }
+
+    return "web";
+  }
+
+  /**
+   * 初始化SDK
+   */
+  async init() {
+    try {
+      // 加载平台适配器
+      this.adapter = await this.loadAdapter(this.platform);
+
+      // 初始化适配器
+      await this.adapter.init(this.config);
+
+      console.log(`MultiPlatformSDK initialized for ${this.platform}`);
+    } catch (error) {
+      console.error("SDK initialization failed:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * 动态加载适配器
+   */
+  async loadAdapter(platform) {
+    const adapterMap = {
+      wechat: () => import("./adapters/WechatAdapter"),
+      dingtalk: () => import("./adapters/DingtalkAdapter"),
+      hybrid: () => import("./adapters/HybridAdapter"),
+      web: () => import("./adapters/WebAdapter"),
+    };
+
+    const AdapterClass = await adapterMap[platform]();
+    return new AdapterClass.default();
+  }
+
+  /**
+   * 统一API方法
+   */
+
+  // 用户认证
+  async login(options = {}) {
+    return this.adapter.login(options);
+  }
+
+  // 获取用户信息
+  async getUserInfo() {
+    return this.adapter.getUserInfo();
+  }
+
+  // 获取系统信息
+  async getSystemInfo() {
+    return this.adapter.getSystemInfo();
+  }
+
+  // 本地存储
+  async setStorage(key, value) {
+    return this.adapter.setStorage(key, value);
+  }
+
+  async getStorage(key) {
+    return this.adapter.getStorage(key);
+  }
+
+  // 网络请求
+  async request(options) {
+    return this.adapter.request(options);
+  }
+
+  // UI交互
+  async showToast(options) {
+    return this.adapter.showToast(options);
+  }
+
+  async showModal(options) {
+    return this.adapter.showModal(options);
+  }
+
+  // 导航
+  async navigateTo(options) {
+    return this.adapter.navigateTo(options);
+  }
+
+  // 设备能力
+  async getLocation(options = {}) {
+    return this.adapter.getLocation(options);
+  }
+
+  async chooseImage(options = {}) {
+    return this.adapter.chooseImage(options);
+  }
+
+  // 分享
+  async share(options) {
+    return this.adapter.share(options);
+  }
+
+  // 支付
+  async pay(options) {
+    return this.adapter.pay(options);
+  }
+}
+
+export default MultiPlatformSDK;
+```
+
+### 基础适配器
+
+```javascript
+// BaseAdapter.js
+class BaseAdapter {
+  constructor() {
+    this.platform = "";
+    this.initialized = false;
+  }
+
+  /**
+   * 初始化适配器
+   */
+  async init(config) {
+    this.config = config;
+    this.initialized = true;
+  }
+
+  /**
+   * 检查初始化状态
+   */
+  checkInitialized() {
+    if (!this.initialized) {
+      throw new Error(`${this.platform} adapter not initialized`);
+    }
+  }
+
+  /**
+   * 错误标准化
+   */
+  normalizeError(error) {
+    return {
+      code: error.code || "UNKNOWN_ERROR",
+      message: error.message || "未知错误",
+      platform: this.platform,
+      originalError: error,
+    };
+  }
+
+  /**
+   * 抽象方法 - 子类必须实现
+   */
+  async login(options) {
+    throw new Error("login method must be implemented");
+  }
+
+  async getUserInfo() {
+    throw new Error("getUserInfo method must be implemented");
+  }
+
+  async getSystemInfo() {
+    throw new Error("getSystemInfo method must be implemented");
+  }
+
+  async setStorage(key, value) {
+    throw new Error("setStorage method must be implemented");
+  }
+
+  async getStorage(key) {
+    throw new Error("getStorage method must be implemented");
+  }
+
+  async request(options) {
+    throw new Error("request method must be implemented");
+  }
+
+  async showToast(options) {
+    throw new Error("showToast method must be implemented");
+  }
+
+  async showModal(options) {
+    throw new Error("showModal method must be implemented");
+  }
+
+  async navigateTo(options) {
+    throw new Error("navigateTo method must be implemented");
+  }
+
+  async getLocation(options) {
+    throw new Error("getLocation method must be implemented");
+  }
+
+  async chooseImage(options) {
+    throw new Error("chooseImage method must be implemented");
+  }
+
+  async share(options) {
+    throw new Error("share method must be implemented");
+  }
+
+  async pay(options) {
+    throw new Error("pay method must be implemented");
+  }
+}
+
+export default BaseAdapter;
+```
+
+## 平台适配器实现
+
+### 微信适配器
+
+```javascript
+// WechatAdapter.js
+import BaseAdapter from "./BaseAdapter";
+
+class WechatAdapter extends BaseAdapter {
+  constructor() {
+    super();
+    this.platform = "wechat";
+  }
+
+  async login(options = {}) {
+    this.checkInitialized();
+
+    return new Promise((resolve, reject) => {
+      wx.login({
+        success: (res) => {
+          resolve({
+            code: res.code,
+            platform: this.platform,
+          });
+        },
+        fail: (error) => {
+          reject(this.normalizeError(error));
+        },
+      });
+    });
+  }
+
+  async getUserInfo() {
+    this.checkInitialized();
+
+    return new Promise((resolve, reject) => {
+      wx.getUserProfile({
+        desc: "获取用户信息",
+        success: (res) => {
+          resolve({
+            nickname: res.userInfo.nickName,
+            avatar: res.userInfo.avatarUrl,
+            gender: res.userInfo.gender,
+            platform: this.platform,
+          });
+        },
+        fail: (error) => {
+          reject(this.normalizeError(error));
+        },
+      });
+    });
+  }
+
+  async getSystemInfo() {
+    return new Promise((resolve, reject) => {
+      wx.getSystemInfo({
+        success: (res) => {
+          resolve({
+            platform: this.platform,
+            system: res.system,
+            version: res.version,
+            model: res.model,
+            screenWidth: res.screenWidth,
+            screenHeight: res.screenHeight,
+          });
+        },
+        fail: (error) => {
+          reject(this.normalizeError(error));
+        },
+      });
+    });
+  }
+
+  async setStorage(key, value) {
+    return new Promise((resolve, reject) => {
+      wx.setStorage({
+        key,
+        data: value,
+        success: () => resolve(true),
+        fail: (error) => reject(this.normalizeError(error)),
+      });
+    });
+  }
+
+  async getStorage(key) {
+    return new Promise((resolve, reject) => {
+      wx.getStorage({
+        key,
+        success: (res) => resolve(res.data),
+        fail: (error) => reject(this.normalizeError(error)),
+      });
+    });
+  }
+
+  async request(options) {
+    return new Promise((resolve, reject) => {
+      wx.request({
+        url: options.url,
+        method: options.method || "GET",
+        data: options.data,
+        header: options.headers,
+        success: (res) => {
+          resolve({
+            data: res.data,
+            statusCode: res.statusCode,
+            headers: res.header,
+          });
+        },
+        fail: (error) => {
+          reject(this.normalizeError(error));
+        },
+      });
+    });
+  }
+
+  async showToast(options) {
+    return new Promise((resolve) => {
+      wx.showToast({
+        title: options.title || options.message,
+        icon: options.type === "success" ? "success" : "none",
+        duration: options.duration || 2000,
+        complete: () => resolve(true),
+      });
+    });
+  }
+
+  async navigateTo(options) {
+    return new Promise((resolve, reject) => {
+      wx.navigateTo({
+        url: options.url,
+        success: () => resolve(true),
+        fail: (error) => reject(this.normalizeError(error)),
+      });
+    });
+  }
+
+  async chooseImage(options = {}) {
+    return new Promise((resolve, reject) => {
+      wx.chooseImage({
+        count: options.count || 1,
+        sizeType: options.sizeType || ["original", "compressed"],
+        sourceType: options.sourceType || ["album", "camera"],
+        success: (res) => {
+          resolve({
+            tempFilePaths: res.tempFilePaths,
+            tempFiles: res.tempFiles,
+          });
+        },
+        fail: (error) => reject(this.normalizeError(error)),
+      });
+    });
+  }
+}
+
+export default WechatAdapter;
+```
+
+### 钉钉适配器
+
+```javascript
+// DingtalkAdapter.js
+import BaseAdapter from "./BaseAdapter";
+
+class DingtalkAdapter extends BaseAdapter {
+  constructor() {
+    super();
+    this.platform = "dingtalk";
+  }
+
+  async login(options = {}) {
+    this.checkInitialized();
+
+    return new Promise((resolve, reject) => {
+      dd.getAuthCode({
+        success: (res) => {
+          resolve({
+            code: res.authCode,
+            platform: this.platform,
+          });
+        },
+        fail: (error) => {
+          reject(this.normalizeError(error));
+        },
+      });
+    });
+  }
+
+  async getUserInfo() {
+    return new Promise((resolve, reject) => {
+      dd.getUserInfo({
+        success: (res) => {
+          resolve({
+            nickname: res.nick,
+            avatar: res.avatar,
+            platform: this.platform,
+          });
+        },
+        fail: (error) => {
+          reject(this.normalizeError(error));
+        },
+      });
+    });
+  }
+
+  async showToast(options) {
+    return new Promise((resolve) => {
+      dd.showToast({
+        content: options.title || options.message,
+        type: options.type || "none",
+        duration: options.duration || 2000,
+        complete: () => resolve(true),
+      });
+    });
+  }
+
+  async request(options) {
+    return new Promise((resolve, reject) => {
+      dd.httpRequest({
+        url: options.url,
+        method: options.method || "GET",
+        data: options.data,
+        headers: options.headers,
+        success: (res) => {
+          resolve({
+            data: res.data,
+            statusCode: res.status,
+            headers: res.headers,
+          });
+        },
+        fail: (error) => {
+          reject(this.normalizeError(error));
+        },
+      });
+    });
+  }
+}
+
+export default DingtalkAdapter;
+```
+
+### Hybrid 适配器
+
+```javascript
+// HybridAdapter.js
+import BaseAdapter from "./BaseAdapter";
+
+class HybridAdapter extends BaseAdapter {
+  constructor() {
+    super();
+    this.platform = "hybrid";
+    this.bridge = null;
+  }
+
+  async init(config) {
+    await super.init(config);
+    this.bridge = this.initBridge();
+  }
+
+  /**
+   * 初始化JSBridge
+   */
+  initBridge() {
+    // Android JSBridge
+    if (window.JSBridge) {
+      return window.JSBridge;
+    }
+
+    // iOS WKWebView
+    if (window.webkit?.messageHandlers) {
+      return {
+        call: (method, params) => {
+          return new Promise((resolve, reject) => {
+            const callbackId = this.generateCallbackId();
+
+            // 注册回调
+            window[`callback_${callbackId}`] = (result) => {
+              if (result.success) {
+                resolve(result.data);
+              } else {
+                reject(new Error(result.message));
+              }
+              delete window[`callback_${callbackId}`];
+            };
+
+            // 调用原生方法
+            window.webkit.messageHandlers.bridge.postMessage({
+              method,
+              params,
+              callbackId,
+            });
+          });
+        },
+      };
+    }
+
+    throw new Error("JSBridge not found");
+  }
+
+  generateCallbackId() {
+    return `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  }
+
+  async login(options = {}) {
+    try {
+      const result = await this.bridge.call("login", options);
+      return {
+        token: result.token,
+        userId: result.userId,
+        platform: this.platform,
+      };
+    } catch (error) {
+      throw this.normalizeError(error);
+    }
+  }
+
+  async getUserInfo() {
+    try {
+      const result = await this.bridge.call("getUserInfo");
+      return {
+        nickname: result.nickname,
+        avatar: result.avatar,
+        platform: this.platform,
+      };
+    } catch (error) {
+      throw this.normalizeError(error);
+    }
+  }
+
+  async setStorage(key, value) {
+    try {
+      await this.bridge.call("setStorage", { key, value });
+      return true;
+    } catch (error) {
+      // 降级到localStorage
+      try {
+        localStorage.setItem(key, JSON.stringify(value));
+        return true;
+      } catch (fallbackError) {
+        throw this.normalizeError(fallbackError);
+      }
+    }
+  }
+
+  async getStorage(key) {
+    try {
+      return await this.bridge.call("getStorage", { key });
+    } catch (error) {
+      // 降级到localStorage
+      try {
+        const value = localStorage.getItem(key);
+        return value ? JSON.parse(value) : null;
+      } catch (fallbackError) {
+        throw this.normalizeError(fallbackError);
+      }
+    }
+  }
+
+  async showToast(options) {
+    try {
+      await this.bridge.call("showToast", {
+        message: options.title || options.message,
+        type: options.type || "info",
+        duration: options.duration || 2000,
+      });
+      return true;
+    } catch (error) {
+      // 降级到Web Toast
+      console.log(`Toast: ${options.title || options.message}`);
+      return true;
+    }
+  }
+}
+
+export default HybridAdapter;
+```
+
+## 配置管理
+
+### 平台配置管理器
+
+```javascript
+// PlatformConfigManager.js
+class PlatformConfigManager {
+  constructor() {
+    this.configs = {
+      wechat: {
+        appId: "",
+        features: {
+          login: true,
+          payment: true,
+          share: true,
+          location: true,
+          camera: true,
+        },
+        limits: {
+          imageSize: 10 * 1024 * 1024, // 10MB
+          imageCount: 9,
+        },
+        apiBaseUrl: "https://api.weixin.qq.com",
+      },
+      dingtalk: {
+        appId: "",
+        features: {
+          login: true,
+          payment: false,
+          share: true,
+          location: true,
+          camera: true,
+        },
+        limits: {
+          imageSize: 5 * 1024 * 1024, // 5MB
+          imageCount: 5,
+        },
+        apiBaseUrl: "https://oapi.dingtalk.com",
+      },
+      hybrid: {
+        features: {
+          login: true,
+          payment: true,
+          share: true,
+          location: true,
+          camera: true,
+        },
+        limits: {
+          imageSize: 20 * 1024 * 1024, // 20MB
+          imageCount: 20,
+        },
+        apiBaseUrl: "https://api.yourapp.com",
+      },
+    };
+  }
+
+  /**
+   * 获取平台配置
+   */
+  getConfig(platform) {
+    return this.configs[platform] || {};
+  }
+
+  /**
+   * 设置平台配置
+   */
+  setConfig(platform, config) {
+    this.configs[platform] = this.deepMerge(
+      this.configs[platform] || {},
+      config
+    );
+  }
+
+  /**
+   * 检查功能支持
+   */
+  isFeatureSupported(platform, feature) {
+    const config = this.getConfig(platform);
+    return config.features?.[feature] || false;
+  }
+
+  /**
+   * 深度合并配置
+   */
+  deepMerge(target, source) {
+    const result = { ...target };
+
+    for (const key in source) {
+      if (
+        source[key] &&
+        typeof source[key] === "object" &&
+        !Array.isArray(source[key])
+      ) {
+        result[key] = this.deepMerge(result[key] || {}, source[key]);
+      } else {
+        result[key] = source[key];
+      }
+    }
+
+    return result;
+  }
+}
+
+export default PlatformConfigManager;
+```
+
+## 使用示例
+
+### 基础用法
+
+```javascript
+// 初始化SDK
+import MultiPlatformSDK from "./MultiPlatformSDK";
+
+const sdk = new MultiPlatformSDK({
+  wechat: {
+    appId: "your-wechat-appid",
+  },
+  dingtalk: {
+    appId: "your-dingtalk-appid",
+  },
+});
+
+// 使用统一API
+async function handleLogin() {
+  try {
+    const loginResult = await sdk.login();
+    console.log("登录成功:", loginResult);
+
+    const userInfo = await sdk.getUserInfo();
+    console.log("用户信息:", userInfo);
+
+    const systemInfo = await sdk.getSystemInfo();
+    console.log("系统信息:", systemInfo);
+  } catch (error) {
+    console.error("操作失败:", error);
+    await sdk.showToast({
+      title: "操作失败，请重试",
+      type: "error",
+    });
+  }
+}
+
+// 数据存储
+async function saveUserData(userData) {
+  try {
+    await sdk.setStorage("userData", userData);
+    await sdk.showToast({
+      title: "保存成功",
+      type: "success",
+    });
+  } catch (error) {
+    console.error("保存失败:", error);
+  }
+}
+
+// 网络请求
+async function fetchData() {
+  try {
+    const response = await sdk.request({
+      url: "https://api.example.com/data",
+      method: "GET",
+      headers: {
+        Authorization: "Bearer token",
+      },
+    });
+
+    return response.data;
+  } catch (error) {
+    console.error("请求失败:", error);
+    throw error;
+  }
+}
+```
+
+### 业务封装示例
+
+```javascript
+// BusinessSDK.js - 业务层封装
+class BusinessSDK {
+  constructor(sdk) {
+    this.sdk = sdk;
+    this.token = null;
+  }
+
+  /**
+   * 用户登录
+   */
+  async login() {
+    try {
+      // 获取平台授权码
+      const authResult = await this.sdk.login();
+
+      // 调用后端登录接口
+      const response = await this.sdk.request({
+        url: "/api/auth/login",
+        method: "POST",
+        data: {
+          platform: authResult.platform,
+          code: authResult.code,
+        },
+      });
+
+      this.token = response.data.token;
+
+      // 保存token
+      await this.sdk.setStorage("token", this.token);
+
+      return response.data;
+    } catch (error) {
+      await this.sdk.showToast({
+        title: "登录失败",
+        type: "error",
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * 上传文件
+   */
+  async uploadFile() {
+    try {
+      // 选择图片
+      const imageResult = await this.sdk.chooseImage({
+        count: 1,
+        sizeType: ["compressed"],
+      });
+
+      // 上传到服务器
+      const uploadResult = await this.sdk.request({
+        url: "/api/upload",
+        method: "POST",
+        data: {
+          file: imageResult.tempFilePaths[0],
+        },
+        headers: {
+          Authorization: `Bearer ${this.token}`,
+        },
+      });
+
+      await this.sdk.showToast({
+        title: "上传成功",
+        type: "success",
+      });
+
+      return uploadResult.data;
+    } catch (error) {
+      await this.sdk.showToast({
+        title: "上传失败",
+        type: "error",
+      });
+      throw error;
+    }
+  }
+}
+```
+
+## 核心优势
+
+### 1. 代码复用
+
+- **统一 API**: 一套代码适配多个平台
+- **业务逻辑复用**: 业务代码无需关心平台差异
+- **维护成本低**: 减少重复开发和维护工作
+
+### 2. 平台抽象
+
+- **屏蔽差异**: 统一的接口规范
+- **优雅降级**: 功能不支持时的备选方案
+- **扩展性强**: 易于添加新平台支持
+
+### 3. 开发效率
+
+- **快速集成**: 简单的初始化和调用
+- **类型安全**: TypeScript 支持和完整的类型定义
+- **调试友好**: 统一的错误处理和日志输出
+
+### 4. 业务价值
+
+- **多端一致**: 保证用户体验的一致性
+- **快速上线**: 缩短多平台应用的开发周期
+- **技术债务**: 减少平台特定代码的技术债务
+
+## 总结
+
+多平台 SDK 集成方案通过适配器模式和平台抽象，成功解决了跨平台开发中的代码复用问题。该方案不仅提升了开发效率，还保证了代码的可维护性和扩展性。通过统一的 API 接口和优雅的降级机制，为业务开发提供了稳定可靠的技术基础。

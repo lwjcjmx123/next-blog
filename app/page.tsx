@@ -2,6 +2,7 @@ import { Hero } from "@/components/hero";
 import { LatestPosts } from "@/components/latest-posts";
 import { FeaturedProjects } from "@/components/featured-projects";
 import { AboutSection } from "@/components/about-section";
+import { HomeClientWrapper } from "@/components/home-client";
 import { getAllPosts, getAllProjects } from "@/lib/data";
 
 export default async function HomePage() {
@@ -20,11 +21,13 @@ export default async function HomePage() {
     .slice(0, 3);
 
   return (
-    <div className="space-y-16">
-      <Hero />
-      <AboutSection />
-      <LatestPosts posts={latestPosts} />
-      <FeaturedProjects projects={featuredProjects} />
-    </div>
+    <HomeClientWrapper>
+      <div className="space-y-16">
+        <Hero />
+        <AboutSection />
+        <LatestPosts posts={latestPosts} />
+        <FeaturedProjects projects={featuredProjects} />
+      </div>
+    </HomeClientWrapper>
   );
 }

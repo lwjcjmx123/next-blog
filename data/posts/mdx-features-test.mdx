@@ -1,0 +1,160 @@
+---
+title: "MDX功能测试 - 图像和Mermaid图表"
+slug: "mdx-features-test"
+date: "2025-01-15"
+author: "测试"
+excerpt: "测试MDX渲染器对图像显示和Mermaid图表的支持"
+tags: ["测试", "MDX", "Mermaid"]
+category: "技术"
+published: true
+---
+
+# MDX 功能增强测试
+
+本文档用于测试 MDX 渲染器的新功能：图像显示和 Mermaid 图表支持。
+
+## 图像显示测试
+
+### 外部图像
+
+![Next.js Logo](https://images.seeklogo.com/logo-png/32/1/next-js-logo-png_seeklogo-321806.png)
+
+## Mermaid 图表测试
+
+### 流程图
+
+```mermaid
+flowchart TD
+    A[开始] --> B{是否支持Mermaid?}
+    B -->|是| C[渲染图表]
+    B -->|否| D[显示错误]
+    C --> E[完成]
+    D --> E
+```
+
+### 序列图
+
+```mermaid
+sequenceDiagram
+    participant U as 用户
+    participant B as 浏览器
+    participant S as 服务器
+
+    U->>B: 访问页面
+    B->>S: 请求MDX内容
+    S-->>B: 返回MDX数据
+    B->>B: 渲染Mermaid图表
+    B-->>U: 显示完整页面
+```
+
+### 类图
+
+```mermaid
+classDiagram
+    class MDXContent {
+        +string content
+        +render()
+        +handleMermaid()
+        +handleImages()
+    }
+
+    class MermaidComponent {
+        +string chart
+        +render()
+        +initialize()
+    }
+
+    class ImageComponent {
+        +string src
+        +string alt
+        +render()
+    }
+
+    MDXContent --> MermaidComponent
+    MDXContent --> ImageComponent
+```
+
+### 甘特图
+
+```mermaid
+gantt
+    title MDX功能开发时间线
+    dateFormat  YYYY-MM-DD
+    section 基础功能
+    MDX渲染器     :done, basic, 2024-01-01, 2024-01-05
+    代码高亮      :done, highlight, 2024-01-03, 2024-01-07
+    section 增强功能
+    图像支持      :done, images, 2024-01-10, 2024-01-12
+    Mermaid支持   :active, mermaid, 2024-01-12, 2024-01-15
+    section 测试
+    功能测试      :testing, 2024-01-15, 2024-01-16
+```
+
+## 系统架构图
+
+```mermaid
+graph TB
+    subgraph "前端层"
+        A[MDX Content]
+        B[Mermaid Component]
+        C[Image Component]
+    end
+
+    subgraph "处理层"
+        D[MDX Parser]
+        E[Syntax Highlighter]
+        F[Mermaid Renderer]
+    end
+
+    subgraph "渲染层"
+        G[React Components]
+        H[DOM Elements]
+    end
+
+    A --> D
+    D --> E
+    D --> F
+    D --> G
+    B --> F
+    C --> G
+    G --> H
+    F --> H
+```
+
+## 测试结果
+
+如果你能看到上面的图像和各种 Mermaid 图表正确渲染，说明 MDX 功能增强成功！
+
+### 功能特点
+
+- ✅ 支持外部图像链接
+- ✅ 图像自动优化和懒加载
+- ✅ 图像描述文字显示
+- ✅ Mermaid 流程图
+- ✅ Mermaid 序列图
+- ✅ Mermaid 类图
+- ✅ Mermaid 甘特图
+- ✅ 响应式设计
+- ✅ 深色模式兼容
+
+## 代码示例
+
+在 MDX 中使用这些功能非常简单：
+
+````markdown
+# 插入图像
+
+![描述文字](图像URL)
+
+# 插入 Mermaid 图表
+
+```mermaid
+flowchart TD
+    A --> B
+```
+````
+
+```
+
+这样就可以在你的博客文章中轻松添加丰富的视觉内容了！
+```

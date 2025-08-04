@@ -1,0 +1,1104 @@
+---
+title: "协同开发与版本控制：编辑锁定与可视化差异系统"
+slug: "collaborative-development-system"
+excerpt: "设计实现基于Git的协同开发系统，支持编辑锁定和可视化差异对比"
+published: true
+date: "2024-01-18"
+category: "开发工具"
+tags: ["协同开发", "版本控制", "Git", "编辑锁定", "可视化差异"]
+author: "Long"
+readingTime: "10分钟"
+---
+
+## 概述
+
+在多人协同开发场景中，如何避免编辑冲突、实现实时协作和版本管理是关键挑战。本文介绍一套基于 Git 的协同开发系统，通过编辑锁定机制和可视化差异工具，提升团队开发效率。
+
+## 系统架构
+
+### 核心组件
+
+<ArchitectureDiagram 
+  title="协同开发系统架构"
+  layers={[
+    {
+      name: "前端编辑器",
+      color: "#3b82f6",
+      components: ["Monaco Editor", "代码编辑", "实时协作", "语法高亮"]
+    },
+    {
+      name: "协同服务层",
+      color: "#8b5cf6",
+      components: ["WebSocket通信", "Redis缓存", "编辑锁定", "冲突检测"]
+    },
+    {
+      name: "版本控制层",
+      color: "#10b981",
+      components: ["Git仓库", "分支管理", "提交历史", "合并策略"]
+    },
+    {
+      name: "差异引擎",
+      color: "#f59e0b",
+      components: ["Myers算法", "AST解析", "可视化展示", "差异对比"]
+    }
+  ]}
+/>
+
+### 技术栈
+
+- **前端**: Monaco Editor + WebSocket
+- **后端**: Node.js + Express + Socket.io
+- **存储**: Redis + Git
+- **差异算法**: Myers 算法 + AST 解析
+
+## 编辑锁定系统
+
+### 锁定管理器
+
+```javascript
+// LockManager.js
+class LockManager {
+  constructor(redisClient) {
+    this.redis = redisClient;
+    this.lockPrefix = "edit_lock:";
+    this.lockTimeout = 30 * 60 * 1000; // 30分钟超时
+  }
+
+  /**
+   * 获取编辑锁
+   */
+  async acquireLock(fileId, userId, userInfo) {
+    const lockKey = `${this.lockPrefix}${fileId}`;
+    const lockData = {
+      userId,
+      userInfo,
+      timestamp: Date.now(),
+      heartbeat: Date.now(),
+    };
+
+    try {
+      // 检查是否已被锁定
+      const existingLock = await this.redis.get(lockKey);
+
+      if (existingLock) {
+        const lock = JSON.parse(existingLock);
+
+        // 检查锁是否过期
+        if (Date.now() - lock.heartbeat > this.lockTimeout) {
+          await this.releaseLock(fileId);
+        } else if (lock.userId !== userId) {
+          throw new Error(`文件正在被 ${lock.userInfo.name} 编辑`);
+        }
+      }
+
+      // 设置锁定
+      await this.redis.setex(
+        lockKey,
+        this.lockTimeout / 1000,
+        JSON.stringify(lockData)
+      );
+
+      return {
+        success: true,
+        lockId: `${fileId}_${userId}_${Date.now()}`,
+      };
+    } catch (error) {
+      throw new Error(`获取编辑锁失败: ${error.message}`);
+    }
+  }
+
+  /**
+   * 释放编辑锁
+   */
+  async releaseLock(fileId, userId = null) {
+    const lockKey = `${this.lockPrefix}${fileId}`;
+
+    try {
+      if (userId) {
+        // 验证用户权限
+        const existingLock = await this.redis.get(lockKey);
+        if (existingLock) {
+          const lock = JSON.parse(existingLock);
+          if (lock.userId !== userId) {
+            throw new Error("无权限释放此锁");
+          }
+        }
+      }
+
+      await this.redis.del(lockKey);
+      return { success: true };
+    } catch (error) {
+      throw new Error(`释放编辑锁失败: ${error.message}`);
+    }
+  }
+
+  /**
+   * 心跳保持
+   */
+  async heartbeat(fileId, userId) {
+    const lockKey = `${this.lockPrefix}${fileId}`;
+
+    try {
+      const existingLock = await this.redis.get(lockKey);
+
+      if (existingLock) {
+        const lock = JSON.parse(existingLock);
+
+        if (lock.userId === userId) {
+          lock.heartbeat = Date.now();
+          await this.redis.setex(
+            lockKey,
+            this.lockTimeout / 1000,
+            JSON.stringify(lock)
+          );
+          return { success: true };
+        }
+      }
+
+      throw new Error("锁不存在或无权限");
+    } catch (error) {
+      throw new Error(`心跳更新失败: ${error.message}`);
+    }
+  }
+
+  /**
+   * 获取锁状态
+   */
+  async getLockStatus(fileId) {
+    const lockKey = `${this.lockPrefix}${fileId}`;
+
+    try {
+      const lockData = await this.redis.get(lockKey);
+
+      if (!lockData) {
+        return { locked: false };
+      }
+
+      const lock = JSON.parse(lockData);
+
+      // 检查是否过期
+      if (Date.now() - lock.heartbeat > this.lockTimeout) {
+        await this.releaseLock(fileId);
+        return { locked: false };
+      }
+
+      return {
+        locked: true,
+        userId: lock.userId,
+        userInfo: lock.userInfo,
+        timestamp: lock.timestamp,
+      };
+    } catch (error) {
+      console.error("获取锁状态失败:", error);
+      return { locked: false };
+    }
+  }
+}
+
+export default LockManager;
+```
+
+### 协同编辑服务
+
+```javascript
+// CollaborationService.js
+import { Server } from "socket.io";
+import LockManager from "./LockManager.js";
+import GitManager from "./GitManager.js";
+
+class CollaborationService {
+  constructor(server, redisClient) {
+    this.io = new Server(server, {
+      cors: {
+        origin: "*",
+        methods: ["GET", "POST"],
+      },
+    });
+
+    this.lockManager = new LockManager(redisClient);
+    this.gitManager = new GitManager();
+    this.activeUsers = new Map();
+
+    this.setupSocketHandlers();
+  }
+
+  setupSocketHandlers() {
+    this.io.on("connection", (socket) => {
+      console.log(`用户连接: ${socket.id}`);
+
+      // 用户加入文件编辑
+      socket.on("join-file", async (data) => {
+        try {
+          const { fileId, userId, userInfo } = data;
+
+          // 加入房间
+          socket.join(fileId);
+
+          // 记录活跃用户
+          this.activeUsers.set(socket.id, {
+            fileId,
+            userId,
+            userInfo,
+            joinTime: Date.now(),
+          });
+
+          // 获取锁状态
+          const lockStatus = await this.lockManager.getLockStatus(fileId);
+
+          // 通知其他用户
+          socket.to(fileId).emit("user-joined", {
+            userId,
+            userInfo,
+            lockStatus,
+          });
+
+          // 发送当前状态
+          socket.emit("join-success", {
+            lockStatus,
+            activeUsers: this.getFileActiveUsers(fileId),
+          });
+        } catch (error) {
+          socket.emit("error", { message: error.message });
+        }
+      });
+
+      // 请求编辑锁
+      socket.on("request-lock", async (data) => {
+        try {
+          const { fileId, userId, userInfo } = data;
+
+          const result = await this.lockManager.acquireLock(
+            fileId,
+            userId,
+            userInfo
+          );
+
+          if (result.success) {
+            // 通知所有用户锁状态变更
+            this.io.to(fileId).emit("lock-acquired", {
+              userId,
+              userInfo,
+              lockId: result.lockId,
+            });
+
+            socket.emit("lock-success", result);
+          }
+        } catch (error) {
+          socket.emit("lock-error", { message: error.message });
+        }
+      });
+
+      // 释放编辑锁
+      socket.on("release-lock", async (data) => {
+        try {
+          const { fileId, userId } = data;
+
+          await this.lockManager.releaseLock(fileId, userId);
+
+          // 通知所有用户
+          this.io.to(fileId).emit("lock-released", {
+            userId,
+            fileId,
+          });
+        } catch (error) {
+          socket.emit("error", { message: error.message });
+        }
+      });
+
+      // 内容变更
+      socket.on("content-change", async (data) => {
+        try {
+          const { fileId, userId, changes, version } = data;
+
+          // 验证编辑权限
+          const lockStatus = await this.lockManager.getLockStatus(fileId);
+
+          if (!lockStatus.locked || lockStatus.userId !== userId) {
+            socket.emit("error", { message: "无编辑权限" });
+            return;
+          }
+
+          // 广播变更（除了发送者）
+          socket.to(fileId).emit("content-updated", {
+            userId,
+            changes,
+            version,
+            timestamp: Date.now(),
+          });
+
+          // 心跳保持
+          await this.lockManager.heartbeat(fileId, userId);
+        } catch (error) {
+          socket.emit("error", { message: error.message });
+        }
+      });
+
+      // 保存文件
+      socket.on("save-file", async (data) => {
+        try {
+          const { fileId, userId, content, message } = data;
+
+          // 验证编辑权限
+          const lockStatus = await this.lockManager.getLockStatus(fileId);
+
+          if (!lockStatus.locked || lockStatus.userId !== userId) {
+            socket.emit("error", { message: "无编辑权限" });
+            return;
+          }
+
+          // Git提交
+          const commitResult = await this.gitManager.commitFile(
+            fileId,
+            content,
+            message,
+            userId
+          );
+
+          // 通知保存成功
+          this.io.to(fileId).emit("file-saved", {
+            userId,
+            commitHash: commitResult.hash,
+            timestamp: Date.now(),
+          });
+        } catch (error) {
+          socket.emit("save-error", { message: error.message });
+        }
+      });
+
+      // 断开连接
+      socket.on("disconnect", async () => {
+        const userInfo = this.activeUsers.get(socket.id);
+
+        if (userInfo) {
+          const { fileId, userId } = userInfo;
+
+          // 释放可能持有的锁
+          try {
+            await this.lockManager.releaseLock(fileId, userId);
+
+            // 通知其他用户
+            socket.to(fileId).emit("user-left", {
+              userId,
+              lockReleased: true,
+            });
+          } catch (error) {
+            console.error("断开连接时释放锁失败:", error);
+          }
+
+          this.activeUsers.delete(socket.id);
+        }
+
+        console.log(`用户断开连接: ${socket.id}`);
+      });
+    });
+  }
+
+  /**
+   * 获取文件的活跃用户
+   */
+  getFileActiveUsers(fileId) {
+    const users = [];
+
+    for (const [socketId, userInfo] of this.activeUsers) {
+      if (userInfo.fileId === fileId) {
+        users.push({
+          socketId,
+          userId: userInfo.userId,
+          userInfo: userInfo.userInfo,
+          joinTime: userInfo.joinTime,
+        });
+      }
+    }
+
+    return users;
+  }
+}
+
+export default CollaborationService;
+```
+
+## Git 版本控制
+
+### Git 管理器
+
+```javascript
+// GitManager.js
+import { execSync } from "child_process";
+import fs from "fs/promises";
+import path from "path";
+
+class GitManager {
+  constructor(repoPath = "./workspace") {
+    this.repoPath = repoPath;
+    this.initRepo();
+  }
+
+  /**
+   * 初始化Git仓库
+   */
+  async initRepo() {
+    try {
+      await fs.access(path.join(this.repoPath, ".git"));
+    } catch {
+      // 仓库不存在，初始化
+      execSync("git init", { cwd: this.repoPath });
+      execSync('git config user.name "Collaboration System"', {
+        cwd: this.repoPath,
+      });
+      execSync('git config user.email "system@example.com"', {
+        cwd: this.repoPath,
+      });
+    }
+  }
+
+  /**
+   * 提交文件
+   */
+  async commitFile(fileId, content, message, userId) {
+    try {
+      const filePath = path.join(this.repoPath, fileId);
+
+      // 确保目录存在
+      await fs.mkdir(path.dirname(filePath), { recursive: true });
+
+      // 写入文件
+      await fs.writeFile(filePath, content, "utf8");
+
+      // Git操作
+      execSync(`git add "${fileId}"`, { cwd: this.repoPath });
+
+      const commitMessage = `${message} (by ${userId})`;
+      execSync(`git commit -m "${commitMessage}"`, { cwd: this.repoPath });
+
+      // 获取提交哈希
+      const hash = execSync("git rev-parse HEAD", {
+        cwd: this.repoPath,
+        encoding: "utf8",
+      }).trim();
+
+      return {
+        success: true,
+        hash,
+        message: commitMessage,
+        timestamp: new Date().toISOString(),
+      };
+    } catch (error) {
+      throw new Error(`Git提交失败: ${error.message}`);
+    }
+  }
+
+  /**
+   * 获取文件历史
+   */
+  async getFileHistory(fileId, limit = 20) {
+    try {
+      const command = `git log --oneline -n ${limit} --follow -- "${fileId}"`;
+      const output = execSync(command, {
+        cwd: this.repoPath,
+        encoding: "utf8",
+      });
+
+      const commits = output
+        .trim()
+        .split("\n")
+        .filter((line) => line.trim())
+        .map((line) => {
+          const [hash, ...messageParts] = line.split(" ");
+          return {
+            hash,
+            message: messageParts.join(" "),
+            shortHash: hash.substring(0, 7),
+          };
+        });
+
+      return commits;
+    } catch (error) {
+      if (error.message.includes("does not exist")) {
+        return [];
+      }
+      throw new Error(`获取文件历史失败: ${error.message}`);
+    }
+  }
+
+  /**
+   * 获取两个版本间的差异
+   */
+  async getDiff(fileId, fromHash, toHash = "HEAD") {
+    try {
+      const command = `git diff ${fromHash}..${toHash} -- "${fileId}"`;
+      const diff = execSync(command, {
+        cwd: this.repoPath,
+        encoding: "utf8",
+      });
+
+      return this.parseDiff(diff);
+    } catch (error) {
+      throw new Error(`获取差异失败: ${error.message}`);
+    }
+  }
+
+  /**
+   * 解析Git差异
+   */
+  parseDiff(diffText) {
+    const lines = diffText.split("\n");
+    const changes = [];
+    let currentHunk = null;
+
+    for (const line of lines) {
+      if (line.startsWith("@@")) {
+        // 新的差异块
+        const match = line.match(/@@ -(\d+),?(\d*) \+(\d+),?(\d*) @@/);
+        if (match) {
+          currentHunk = {
+            oldStart: parseInt(match[1]),
+            oldLines: parseInt(match[2] || "1"),
+            newStart: parseInt(match[3]),
+            newLines: parseInt(match[4] || "1"),
+            changes: [],
+          };
+          changes.push(currentHunk);
+        }
+      } else if (
+        currentHunk &&
+        (line.startsWith("+") || line.startsWith("-") || line.startsWith(" "))
+      ) {
+        currentHunk.changes.push({
+          type:
+            line[0] === "+" ? "add" : line[0] === "-" ? "delete" : "context",
+          content: line.substring(1),
+          lineNumber:
+            line[0] === "-"
+              ? currentHunk.oldStart++
+              : line[0] === "+"
+              ? currentHunk.newStart++
+              : currentHunk.oldStart++,
+        });
+      }
+    }
+
+    return changes;
+  }
+
+  /**
+   * 获取特定版本的文件内容
+   */
+  async getFileContent(fileId, hash = "HEAD") {
+    try {
+      const content = execSync(`git show ${hash}:"${fileId}"`, {
+        cwd: this.repoPath,
+        encoding: "utf8",
+      });
+
+      return content;
+    } catch (error) {
+      if (error.message.includes("does not exist")) {
+        return null;
+      }
+      throw new Error(`获取文件内容失败: ${error.message}`);
+    }
+  }
+}
+
+export default GitManager;
+```
+
+## 可视化差异引擎
+
+### 差异计算器
+
+```javascript
+// DiffCalculator.js
+class DiffCalculator {
+  /**
+   * Myers差异算法实现
+   */
+  static calculateDiff(oldText, newText) {
+    const oldLines = oldText.split("\n");
+    const newLines = newText.split("\n");
+
+    const diff = this.myersDiff(oldLines, newLines);
+    return this.formatDiff(diff, oldLines, newLines);
+  }
+
+  /**
+   * Myers算法核心实现
+   */
+  static myersDiff(a, b) {
+    const N = a.length;
+    const M = b.length;
+    const MAX = N + M;
+
+    const v = {};
+    const trace = [];
+
+    v[1] = 0;
+
+    for (let d = 0; d <= MAX; d++) {
+      trace.push({ ...v });
+
+      for (let k = -d; k <= d; k += 2) {
+        let x;
+
+        if (k === -d || (k !== d && v[k - 1] < v[k + 1])) {
+          x = v[k + 1];
+        } else {
+          x = v[k - 1] + 1;
+        }
+
+        let y = x - k;
+
+        while (x < N && y < M && a[x] === b[y]) {
+          x++;
+          y++;
+        }
+
+        v[k] = x;
+
+        if (x >= N && y >= M) {
+          return this.backtrack(trace, a, b, x, y, d);
+        }
+      }
+    }
+
+    return [];
+  }
+
+  /**
+   * 回溯构建差异路径
+   */
+  static backtrack(trace, a, b, x, y, d) {
+    const path = [];
+
+    for (let i = d; i >= 0; i--) {
+      const v = trace[i];
+      const k = x - y;
+
+      let prevK;
+      if (k === -i || (k !== i && v[k - 1] < v[k + 1])) {
+        prevK = k + 1;
+      } else {
+        prevK = k - 1;
+      }
+
+      const prevX = v[prevK];
+      const prevY = prevX - prevK;
+
+      while (x > prevX && y > prevY) {
+        path.unshift({ type: "equal", oldIndex: x - 1, newIndex: y - 1 });
+        x--;
+        y--;
+      }
+
+      if (i > 0) {
+        if (x > prevX) {
+          path.unshift({ type: "delete", oldIndex: x - 1, newIndex: -1 });
+          x--;
+        } else {
+          path.unshift({ type: "insert", oldIndex: -1, newIndex: y - 1 });
+          y--;
+        }
+      }
+    }
+
+    return path;
+  }
+
+  /**
+   * 格式化差异结果
+   */
+  static formatDiff(path, oldLines, newLines) {
+    const result = {
+      additions: 0,
+      deletions: 0,
+      changes: [],
+    };
+
+    let currentChange = null;
+
+    for (const step of path) {
+      if (step.type === "equal") {
+        if (currentChange) {
+          result.changes.push(currentChange);
+          currentChange = null;
+        }
+
+        result.changes.push({
+          type: "equal",
+          content: oldLines[step.oldIndex],
+          oldLineNumber: step.oldIndex + 1,
+          newLineNumber: step.newIndex + 1,
+        });
+      } else if (step.type === "delete") {
+        if (!currentChange) {
+          currentChange = {
+            type: "change",
+            deletions: [],
+            additions: [],
+          };
+        }
+
+        currentChange.deletions.push({
+          content: oldLines[step.oldIndex],
+          lineNumber: step.oldIndex + 1,
+        });
+
+        result.deletions++;
+      } else if (step.type === "insert") {
+        if (!currentChange) {
+          currentChange = {
+            type: "change",
+            deletions: [],
+            additions: [],
+          };
+        }
+
+        currentChange.additions.push({
+          content: newLines[step.newIndex],
+          lineNumber: step.newIndex + 1,
+        });
+
+        result.additions++;
+      }
+    }
+
+    if (currentChange) {
+      result.changes.push(currentChange);
+    }
+
+    return result;
+  }
+
+  /**
+   * 计算相似度
+   */
+  static calculateSimilarity(oldText, newText) {
+    const oldLines = oldText.split("\n");
+    const newLines = newText.split("\n");
+
+    const diff = this.calculateDiff(oldText, newText);
+    const totalLines = Math.max(oldLines.length, newLines.length);
+    const changedLines = diff.additions + diff.deletions;
+
+    return Math.max(0, (totalLines - changedLines) / totalLines);
+  }
+}
+
+export default DiffCalculator;
+```
+
+### 前端差异组件
+
+```javascript
+// DiffViewer.jsx
+import React, { useMemo } from "react";
+import "./DiffViewer.css";
+
+const DiffViewer = ({ oldContent, newContent, title }) => {
+  const diffResult = useMemo(() => {
+    return DiffCalculator.calculateDiff(oldContent, newContent);
+  }, [oldContent, newContent]);
+
+  const similarity = useMemo(() => {
+    return DiffCalculator.calculateSimilarity(oldContent, newContent);
+  }, [oldContent, newContent]);
+
+  const renderChange = (change, index) => {
+    if (change.type === "equal") {
+      return (
+        <div key={index} className="diff-line diff-equal">
+          <span className="line-number old">{change.oldLineNumber}</span>
+          <span className="line-number new">{change.newLineNumber}</span>
+          <span className="line-content">{change.content}</span>
+        </div>
+      );
+    }
+
+    if (change.type === "change") {
+      return (
+        <div key={index} className="diff-change-group">
+          {change.deletions.map((deletion, i) => (
+            <div key={`del-${i}`} className="diff-line diff-deletion">
+              <span className="line-number old">{deletion.lineNumber}</span>
+              <span className="line-number new">-</span>
+              <span className="line-content">- {deletion.content}</span>
+            </div>
+          ))}
+          {change.additions.map((addition, i) => (
+            <div key={`add-${i}`} className="diff-line diff-addition">
+              <span className="line-number old">-</span>
+              <span className="line-number new">{addition.lineNumber}</span>
+              <span className="line-content">+ {addition.content}</span>
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    return null;
+  };
+
+  return (
+    <div className="diff-viewer">
+      <div className="diff-header">
+        <h3>{title}</h3>
+        <div className="diff-stats">
+          <span className="additions">+{diffResult.additions}</span>
+          <span className="deletions">-{diffResult.deletions}</span>
+          <span className="similarity">
+            相似度: {(similarity * 100).toFixed(1)}%
+          </span>
+        </div>
+      </div>
+
+      <div className="diff-content">
+        <div className="diff-header-row">
+          <span className="line-number-header">旧版本</span>
+          <span className="line-number-header">新版本</span>
+          <span className="content-header">内容</span>
+        </div>
+
+        {diffResult.changes.map(renderChange)}
+      </div>
+    </div>
+  );
+};
+
+export default DiffViewer;
+```
+
+## 使用示例
+
+### 前端集成
+
+```javascript
+// CollaborativeEditor.jsx
+import React, { useState, useEffect, useRef } from "react";
+import { io } from "socket.io-client";
+import MonacoEditor from "@monaco-editor/react";
+import DiffViewer from "./DiffViewer";
+
+const CollaborativeEditor = ({ fileId, userId, userInfo }) => {
+  const [content, setContent] = useState("");
+  const [isLocked, setIsLocked] = useState(false);
+  const [lockOwner, setLockOwner] = useState(null);
+  const [activeUsers, setActiveUsers] = useState([]);
+  const [showDiff, setShowDiff] = useState(false);
+  const [originalContent, setOriginalContent] = useState("");
+
+  const socketRef = useRef(null);
+  const editorRef = useRef(null);
+
+  useEffect(() => {
+    // 建立WebSocket连接
+    socketRef.current = io("ws://localhost:3001");
+
+    const socket = socketRef.current;
+
+    // 加入文件编辑
+    socket.emit("join-file", { fileId, userId, userInfo });
+
+    // 监听事件
+    socket.on("join-success", (data) => {
+      setActiveUsers(data.activeUsers);
+      if (data.lockStatus.locked) {
+        setIsLocked(true);
+        setLockOwner(data.lockStatus.userInfo);
+      }
+    });
+
+    socket.on("lock-acquired", (data) => {
+      setIsLocked(true);
+      setLockOwner(data.userInfo);
+    });
+
+    socket.on("lock-released", () => {
+      setIsLocked(false);
+      setLockOwner(null);
+    });
+
+    socket.on("content-updated", (data) => {
+      if (data.userId !== userId) {
+        // 应用其他用户的更改
+        applyChanges(data.changes);
+      }
+    });
+
+    socket.on("file-saved", (data) => {
+      console.log("文件已保存:", data);
+      setOriginalContent(content);
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [fileId, userId]);
+
+  const requestLock = () => {
+    socketRef.current.emit("request-lock", {
+      fileId,
+      userId,
+      userInfo,
+    });
+  };
+
+  const releaseLock = () => {
+    socketRef.current.emit("release-lock", {
+      fileId,
+      userId,
+    });
+  };
+
+  const handleContentChange = (value) => {
+    setContent(value);
+
+    if (isLocked && lockOwner?.userId === userId) {
+      // 发送内容变更
+      socketRef.current.emit("content-change", {
+        fileId,
+        userId,
+        changes: value,
+        version: Date.now(),
+      });
+    }
+  };
+
+  const saveFile = () => {
+    if (isLocked && lockOwner?.userId === userId) {
+      const message = prompt("请输入提交信息:");
+      if (message) {
+        socketRef.current.emit("save-file", {
+          fileId,
+          userId,
+          content,
+          message,
+        });
+      }
+    }
+  };
+
+  const applyChanges = (changes) => {
+    if (editorRef.current) {
+      const editor = editorRef.current;
+      editor.setValue(changes);
+    }
+  };
+
+  const toggleDiff = () => {
+    setShowDiff(!showDiff);
+  };
+
+  return (
+    <div className="collaborative-editor">
+      <div className="editor-toolbar">
+        <div className="lock-status">
+          {isLocked ? (
+            <span
+              className={`lock-indicator locked ${
+                lockOwner?.userId === userId ? "owned" : ""
+              }`}
+            >
+              🔒{" "}
+              {lockOwner?.userId === userId
+                ? "你正在编辑"
+                : `${lockOwner?.name} 正在编辑`}
+            </span>
+          ) : (
+            <span className="lock-indicator unlocked">🔓 可编辑</span>
+          )}
+        </div>
+
+        <div className="editor-actions">
+          {!isLocked && (
+            <button onClick={requestLock} className="btn-primary">
+              开始编辑
+            </button>
+          )}
+
+          {isLocked && lockOwner?.userId === userId && (
+            <>
+              <button onClick={saveFile} className="btn-success">
+                保存
+              </button>
+              <button onClick={releaseLock} className="btn-secondary">
+                结束编辑
+              </button>
+            </>
+          )}
+
+          <button onClick={toggleDiff} className="btn-outline">
+            {showDiff ? "隐藏差异" : "显示差异"}
+          </button>
+        </div>
+
+        <div className="active-users">
+          {activeUsers.map((user) => (
+            <span
+              key={user.userId}
+              className="user-avatar"
+              title={user.userInfo.name}
+            >
+              {user.userInfo.name[0]}
+            </span>
+          ))}
+        </div>
+      </div>
+
+      {showDiff ? (
+        <DiffViewer
+          oldContent={originalContent}
+          newContent={content}
+          title="文件差异对比"
+        />
+      ) : (
+        <MonacoEditor
+          height="600px"
+          language="javascript"
+          value={content}
+          onChange={handleContentChange}
+          onMount={(editor) => {
+            editorRef.current = editor;
+          }}
+          options={{
+            readOnly: !isLocked || lockOwner?.userId !== userId,
+            minimap: { enabled: false },
+            scrollBeyondLastLine: false,
+          }}
+        />
+      )}
+    </div>
+  );
+};
+
+export default CollaborativeEditor;
+```
+
+## 核心优势
+
+### 1. 冲突避免
+
+- **编辑锁定**: 确保同时只有一人编辑
+- **实时状态**: 显示文件编辑状态和活跃用户
+- **自动释放**: 连接断开时自动释放锁定
+
+### 2. 版本管理
+
+- **Git 集成**: 完整的版本历史记录
+- **提交追踪**: 记录每次修改的作者和时间
+- **分支支持**: 支持多分支开发流程
+
+### 3. 可视化差异
+
+- **精确对比**: 基于 Myers 算法的高效差异计算
+- **直观展示**: 清晰的增删改标识
+- **相似度分析**: 量化文件变更程度
+
+### 4. 实时协作
+
+- **WebSocket 通信**: 低延迟的实时同步
+- **状态同步**: 编辑状态和用户活动实时更新
+- **优雅降级**: 网络异常时的本地缓存机制
+
+## 总结
+
+协同开发与版本控制系统通过编辑锁定机制有效避免了多人编辑冲突，结合 Git 版本管理和可视化差异工具，为团队提供了完整的协作开发解决方案。该系统不仅提升了开发效率，还保证了代码质量和版本管理的规范性。

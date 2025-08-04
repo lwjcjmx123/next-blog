@@ -14,92 +14,149 @@ readingTime: 15
 
 渐进式 Web 应用（Progressive Web Apps，PWA）代表了 Web 技术的重要发展方向，它结合了 Web 和原生应用的优势，为用户提供快速、可靠、引人入胜的体验。PWA 不仅能够在各种设备上运行，还具备离线功能、推送通知、应用安装等原生应用特性。
 
+**PWA 的核心价值：**
+- **降低开发成本**：一套代码适配多个平台，减少维护负担
+- **提升用户体验**：接近原生应用的性能和交互体验
+- **增强可访问性**：通过 Web 技术实现更好的可访问性支持
+- **简化分发**：无需应用商店，通过 URL 即可访问和安装
+- **实时更新**：自动更新，用户始终使用最新版本
+
+在移动互联网时代，PWA 为企业提供了一种高效的数字化解决方案，既能满足用户对高质量应用体验的需求，又能降低开发和维护成本。
+
 ## PWA 核心概念与特性
+
+PWA 的设计哲学基于一系列核心原则，这些原则确保应用能够在各种环境下提供一致、可靠的用户体验。理解这些原则是构建成功 PWA 的基础。
 
 ### 1. PWA 的核心原则
 
 #### 渐进增强（Progressive Enhancement）
 
-- **基础功能优先**：确保在所有浏览器中都能正常工作
-- **功能分层**：在支持的浏览器中提供增强功能
-- **优雅降级**：在不支持的环境中保持基本可用性
+渐进增强是 PWA 的基础设计理念，确保应用在任何环境下都能正常工作：
+
+- **基础功能优先**：确保在所有浏览器中都能正常工作，即使是不支持现代特性的旧浏览器
+- **功能分层**：在支持的浏览器中提供增强功能，如离线缓存、推送通知等
+- **优雅降级**：在不支持的环境中保持基本可用性，不会出现功能完全失效的情况
+- **特性检测**：通过 JavaScript 检测浏览器能力，动态启用相应功能
 
 #### 响应式设计（Responsive）
 
-- **适配所有设备**：从手机到桌面的完美适配
-- **灵活布局**：基于视口大小动态调整
-- **触控友好**：优化触控交互体验
+响应式设计确保 PWA 在所有设备上都能提供优秀的用户体验：
+
+- **适配所有设备**：从手机到桌面的完美适配，支持各种屏幕尺寸和分辨率
+- **灵活布局**：基于视口大小动态调整，使用 CSS Grid、Flexbox 等现代布局技术
+- **触控友好**：优化触控交互体验，合适的点击区域大小和手势支持
+- **性能优化**：针对不同设备的性能特点进行优化，确保流畅的用户体验
 
 #### 连接独立（Connectivity Independent）
 
-- **离线工作**：在网络不稳定或离线时仍可使用
-- **后台同步**：网络恢复时自动同步数据
-- **智能缓存**：优化资源加载和存储策略
+连接独立性是 PWA 区别于传统 Web 应用的重要特性：
+
+- **离线工作**：在网络不稳定或离线时仍可使用核心功能，提供无缝的用户体验
+- **后台同步**：网络恢复时自动同步数据，确保数据一致性
+- **智能缓存**：优化资源加载和存储策略，平衡性能和存储空间
+- **网络感知**：根据网络状况调整应用行为，如在慢速网络下减少数据传输
 
 ### 2. PWA 技术栈
 
+PWA 的实现依赖于一系列现代 Web 技术，这些技术协同工作，为用户提供接近原生应用的体验。了解这些核心技术是开发高质量 PWA 的前提。
+
 #### Service Worker
 
-- **后台脚本**：独立于主线程运行的 JavaScript
-- **网络代理**：拦截和处理网络请求
-- **缓存管理**：实现复杂的缓存策略
-- **后台同步**：处理离线数据同步
+Service Worker 是 PWA 的核心技术，它充当 Web 应用和网络之间的代理层：
+
+- **后台脚本**：独立于主线程运行的 JavaScript，不会阻塞 UI 渲染
+- **网络代理**：拦截和处理网络请求，实现自定义的网络策略
+- **缓存管理**：实现复杂的缓存策略，支持多种缓存模式（Cache First、Network First等）
+- **后台同步**：处理离线数据同步，在网络恢复时自动同步用户操作
+- **推送通知**：接收和处理服务器推送的消息，即使应用未打开也能工作
+- **生命周期管理**：独立的安装、激活、更新生命周期，确保应用的可靠性
 
 #### Web App Manifest
 
-- **应用元数据**：定义应用的基本信息
-- **安装体验**：控制应用的安装行为
-- **启动配置**：设置应用启动时的外观
+Web App Manifest 是一个 JSON 文件，定义了 PWA 的元数据和行为：
+
+- **应用元数据**：定义应用的基本信息，如名称、图标、主题色等
+- **安装体验**：控制应用的安装行为，包括安装提示和安装后的启动方式
+- **启动配置**：设置应用启动时的外观，如全屏模式、启动 URL、屏幕方向等
+- **平台集成**：定义应用在不同平台上的表现，如任务栏图标、启动画面等
+- **功能声明**：声明应用支持的功能，如文件处理、协议处理等
 
 #### HTTPS 要求
 
-- **安全连接**：PWA 必须在 HTTPS 环境下运行
-- **数据保护**：确保用户数据传输安全
-- **API 访问**：许多 PWA API 需要安全上下文
+HTTPS 是 PWA 的基础安全要求，确保应用的安全性和可信度：
+
+- **安全连接**：PWA 必须在 HTTPS 环境下运行（localhost 除外），保证数据传输安全
+- **数据保护**：确保用户数据传输安全，防止中间人攻击和数据泄露
+- **API 访问**：许多 PWA API（如 Service Worker、Geolocation、Camera 等）需要安全上下文
+- **用户信任**：HTTPS 证书增强用户对应用的信任，提升用户体验
+- **SEO 优势**：搜索引擎更偏好 HTTPS 网站，有利于应用的发现和推广
 
 ## Service Worker 深度实践
 
+Service Worker 是 PWA 的核心技术，它提供了强大的离线功能和网络控制能力。深入理解 Service Worker 的生命周期、缓存策略和事件处理机制是构建高质量 PWA 的关键。
+
 ### 1. Service Worker 生命周期
+
+Service Worker 具有独特的生命周期，包括安装、激活、运行和终止等阶段。正确管理这些阶段对于确保应用的稳定性和性能至关重要：
+
+**生命周期阶段：**
+- **注册（Register）**：在主线程中注册 Service Worker
+- **安装（Install）**：下载并安装 Service Worker 文件
+- **等待（Waiting）**：新版本等待旧版本释放控制权
+- **激活（Activate）**：获得控制权，清理旧资源
+- **运行（Fetch）**：拦截网络请求，提供缓存服务
+- **终止（Terminate）**：浏览器可能会终止空闲的 Service Worker
 
 ```javascript
 // sw.js - Service Worker主文件
+// 定义缓存名称和需要缓存的资源列表
 const CACHE_NAME = "pwa-cache-v1";
 const urlsToCache = [
-  "/",
-  "/static/css/main.css",
-  "/static/js/main.js",
-  "/static/images/logo.png",
-  "/offline.html",
+  "/", // 首页
+  "/static/css/main.css", // 主要样式文件
+  "/static/js/main.js", // 主要脚本文件
+  "/static/images/logo.png", // 应用图标
+  "/offline.html", // 离线页面
 ];
 
-// 安装事件 - 缓存资源
+// 安装事件 - 缓存关键资源
+// 这是Service Worker生命周期的第一个阶段
 self.addEventListener("install", (event) => {
   console.log("Service Worker 安装中...");
 
+  // 使用waitUntil确保安装过程完成
   event.waitUntil(
     caches
-      .open(CACHE_NAME)
+      .open(CACHE_NAME) // 打开指定名称的缓存
       .then((cache) => {
         console.log("缓存已打开");
+        // 将所有关键资源添加到缓存中
         return cache.addAll(urlsToCache);
       })
       .then(() => {
-        // 强制激活新的Service Worker
+        // 强制激活新的Service Worker，跳过等待阶段
+        // 这在开发阶段很有用，生产环境需要谨慎使用
         return self.skipWaiting();
+      })
+      .catch((error) => {
+        console.error("Service Worker 安装失败:", error);
       })
   );
 });
 
-// 激活事件 - 清理旧缓存
+// 激活事件 - 清理旧缓存和获取控制权
+// 在新的Service Worker激活时触发
 self.addEventListener("activate", (event) => {
   console.log("Service Worker 激活中...");
 
   event.waitUntil(
     caches
-      .keys()
+      .keys() // 获取所有缓存名称
       .then((cacheNames) => {
+        // 并行删除所有旧版本的缓存
         return Promise.all(
           cacheNames.map((cacheName) => {
+            // 如果缓存名称不是当前版本，则删除
             if (cacheName !== CACHE_NAME) {
               console.log("删除旧缓存:", cacheName);
               return caches.delete(cacheName);
@@ -108,25 +165,38 @@ self.addEventListener("activate", (event) => {
         );
       })
       .then(() => {
-        // 立即控制所有客户端
+        // 立即控制所有客户端，无需等待页面刷新
+        // 这确保新的Service Worker立即生效
         return self.clients.claim();
+      })
+      .catch((error) => {
+        console.error("Service Worker 激活失败:", error);
       })
   );
 });
 
-// 拦截网络请求
+// 拦截网络请求 - 实现缓存策略
+// 这是Service Worker最重要的功能之一
 self.addEventListener("fetch", (event) => {
+  // 只处理GET请求，忽略POST等其他请求
+  if (event.request.method !== 'GET') {
+    return;
+  }
+
   event.respondWith(
     caches.match(event.request).then((response) => {
-      // 缓存命中，返回缓存资源
+      // 缓存命中，直接返回缓存资源
       if (response) {
+        console.log("从缓存返回:", event.request.url);
         return response;
       }
 
       // 缓存未命中，发起网络请求
+      console.log("网络请求:", event.request.url);
       return fetch(event.request)
         .then((response) => {
           // 检查响应是否有效
+          // 只缓存成功的、基本的HTTP响应
           if (
             !response ||
             response.status !== 200 ||
@@ -135,20 +205,28 @@ self.addEventListener("fetch", (event) => {
             return response;
           }
 
-          // 克隆响应用于缓存
+          // 克隆响应用于缓存（Response对象只能读取一次）
           const responseToCache = response.clone();
 
+          // 异步将响应添加到缓存中
           caches.open(CACHE_NAME).then((cache) => {
             cache.put(event.request, responseToCache);
           });
 
           return response;
         })
-        .catch(() => {
-          // 网络请求失败，返回离线页面
+        .catch((error) => {
+          console.error("网络请求失败:", error);
+          // 网络请求失败，根据请求类型返回相应的离线内容
           if (event.request.destination === "document") {
+            // 对于页面请求，返回离线页面
             return caches.match("/offline.html");
+          } else if (event.request.destination === "image") {
+            // 对于图片请求，可以返回默认图片
+            return caches.match("/static/images/offline-image.png");
           }
+          // 其他类型的请求直接抛出错误
+          throw error;
         });
     })
   );
@@ -157,31 +235,63 @@ self.addEventListener("fetch", (event) => {
 
 ### 2. 高级缓存策略
 
+不同类型的资源需要不同的缓存策略。合理选择缓存策略可以显著提升应用性能和用户体验。以下是几种常用的缓存策略及其适用场景：
+
+**缓存策略类型：**
+- **Cache First（缓存优先）**：适用于静态资源，如图片、CSS、JS文件
+- **Network First（网络优先）**：适用于动态内容，如API数据、新闻内容
+- **Stale While Revalidate（后台更新）**：适用于需要快速响应但允许延迟更新的内容
+- **Network Only（仅网络）**：适用于实时性要求极高的内容
+- **Cache Only（仅缓存）**：适用于离线模式下的静态内容
+
 ```javascript
 // cache-strategies.js
+// 高级缓存策略实现类
 class CacheStrategies {
-  // 缓存优先策略
+  // 缓存优先策略 - 适用于静态资源
+  // 优先从缓存获取，缓存未命中时才请求网络
   static cacheFirst(request) {
     return caches.match(request).then((cachedResponse) => {
+      // 如果缓存中有资源，直接返回
       if (cachedResponse) {
+        console.log('Cache First: 从缓存返回', request.url);
         return cachedResponse;
       }
+      
+      // 缓存未命中，发起网络请求
+      console.log('Cache First: 网络请求', request.url);
       return fetch(request).then((response) => {
-        const responseClone = response.clone();
-        caches.open(CACHE_NAME).then((cache) => {
-          cache.put(request, responseClone);
-        });
+        // 检查响应有效性
+        if (response && response.status === 200) {
+          const responseClone = response.clone();
+          // 异步缓存响应
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(request, responseClone);
+          });
+        }
         return response;
+      }).catch((error) => {
+        console.error('Cache First: 网络请求失败', error);
+        throw error;
       });
     });
   }
 
-  // 网络优先策略
+  // 网络优先策略 - 适用于动态内容
+  // 优先尝试网络请求，失败或超时时使用缓存
   static networkFirst(request, timeout = 3000) {
     return new Promise((resolve, reject) => {
+      let networkFailed = false;
+      
+      // 设置超时定时器
       const timeoutId = setTimeout(() => {
+        networkFailed = true;
+        console.log('Network First: 网络超时，尝试缓存');
+        
+        // 网络超时，尝试从缓存获取
         caches.match(request).then((cachedResponse) => {
           if (cachedResponse) {
+            console.log('Network First: 从缓存返回', request.url);
             resolve(cachedResponse);
           } else {
             reject(new Error("网络超时且无缓存"));
@@ -189,19 +299,31 @@ class CacheStrategies {
         });
       }, timeout);
 
+      // 发起网络请求
       fetch(request)
         .then((response) => {
-          clearTimeout(timeoutId);
-          const responseClone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(request, responseClone);
-          });
-          resolve(response);
+          // 如果还没有超时，清除定时器并处理响应
+          if (!networkFailed) {
+            clearTimeout(timeoutId);
+            console.log('Network First: 网络请求成功', request.url);
+            // 缓存网络响应
+            const responseClone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(request, responseClone);
+            });
+            resolve(response);
+          }
         })
-        .catch(() => {
-          clearTimeout(timeoutId);
+        .catch((error) => {
+          // 网络请求失败，尝试从缓存获取
+          if (!networkFailed) {
+            clearTimeout(timeoutId);
+            console.error('Network First: 网络请求失败', error);
+          }
+          
           caches.match(request).then((cachedResponse) => {
             if (cachedResponse) {
+              console.log('Network First: 网络失败，从缓存返回', request.url);
               resolve(cachedResponse);
             } else {
               reject(new Error("网络失败且无缓存"));
@@ -211,11 +333,13 @@ class CacheStrategies {
     });
   }
 
-  // 最快响应策略
+  // 最快响应策略 - 竞速模式
+  // 同时发起缓存和网络请求，哪个先返回就用哪个
   static fastest(request) {
     return new Promise((resolve, reject) => {
       let resolved = false;
 
+      // 确保只resolve一次
       const resolveOnce = (response) => {
         if (!resolved) {
           resolved = true;
@@ -223,22 +347,29 @@ class CacheStrategies {
         }
       };
 
-      // 同时尝试缓存和网络
+      // 同时尝试缓存和网络请求
+      // 缓存查询
       caches.match(request).then((cachedResponse) => {
         if (cachedResponse) {
+          console.log('Fastest: 缓存获胜', request.url);
           resolveOnce(cachedResponse);
         }
       });
 
+      // 网络请求
       fetch(request)
         .then((response) => {
+          console.log('Fastest: 网络获胜', request.url);
+          // 异步缓存响应
           const responseClone = response.clone();
           caches.open(CACHE_NAME).then((cache) => {
             cache.put(request, responseClone);
           });
           resolveOnce(response);
         })
-        .catch(() => {
+        .catch((error) => {
+          console.error('Fastest: 网络请求失败', error);
+          // 如果还没有resolved（缓存也没有），则reject
           if (!resolved) {
             reject(new Error("缓存和网络都失败"));
           }
@@ -246,69 +377,115 @@ class CacheStrategies {
     });
   }
 
-  // 仅网络策略
+  // 仅网络策略 - 适用于实时性要求极高的内容
   static networkOnly(request) {
+    console.log('Network Only:', request.url);
     return fetch(request);
   }
 
-  // 仅缓存策略
+  // 仅缓存策略 - 适用于离线模式
   static cacheOnly(request) {
+    console.log('Cache Only:', request.url);
     return caches.match(request);
+  }
+
+  // Stale While Revalidate策略 - 后台更新
+  // 立即返回缓存内容，同时在后台更新缓存
+  static staleWhileRevalidate(request) {
+    return caches.match(request).then((cachedResponse) => {
+      // 后台发起网络请求更新缓存
+      const fetchPromise = fetch(request).then((response) => {
+        const responseClone = response.clone();
+        caches.open(CACHE_NAME).then((cache) => {
+          cache.put(request, responseClone);
+        });
+        return response;
+      });
+
+      // 如果有缓存，立即返回缓存内容
+      if (cachedResponse) {
+        console.log('Stale While Revalidate: 返回缓存，后台更新', request.url);
+        return cachedResponse;
+      }
+      
+      // 如果没有缓存，等待网络请求
+      console.log('Stale While Revalidate: 等待网络请求', request.url);
+      return fetchPromise;
+    });
   }
 }
 
 // 在Service Worker中使用策略
+// 根据不同的资源类型和URL模式选择合适的缓存策略
 self.addEventListener("fetch", (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // 根据资源类型选择缓存策略
+  // 根据资源类型和URL模式选择缓存策略
   if (request.destination === "document") {
-    // HTML文档使用网络优先
+    // HTML文档使用网络优先策略，确保内容新鲜
     event.respondWith(CacheStrategies.networkFirst(request));
   } else if (request.destination === "image") {
-    // 图片使用缓存优先
+    // 图片使用缓存优先策略，提升加载速度
     event.respondWith(CacheStrategies.cacheFirst(request));
   } else if (url.pathname.startsWith("/api/")) {
-    // API请求使用最快响应
-    event.respondWith(CacheStrategies.fastest(request));
-  } else {
-    // 其他资源使用缓存优先
+    // API请求使用Stale While Revalidate，平衡速度和新鲜度
+    event.respondWith(CacheStrategies.staleWhileRevalidate(request));
+  } else if (url.pathname.includes("/static/")) {
+    // 静态资源使用缓存优先策略
     event.respondWith(CacheStrategies.cacheFirst(request));
+  } else {
+    // 其他资源使用最快响应策略
+    event.respondWith(CacheStrategies.fastest(request));
   }
 });
 ```
 
 ### 3. 后台同步实现
 
+后台同步（Background Sync）是PWA的重要特性之一，它允许应用在网络恢复时自动同步离线期间产生的数据。这个功能对于提升用户体验至关重要，特别是在网络不稳定的环境中。
+
+**后台同步的核心价值：**
+- **数据一致性**：确保离线操作的数据能够在网络恢复时同步到服务器
+- **用户体验**：用户无需手动重试失败的操作
+- **可靠性**：即使应用关闭，同步任务也会在适当时机执行
+- **智能重试**：浏览器会在网络条件良好时自动触发同步
+
 ```javascript
 // background-sync.js
+// 后台同步管理器 - 处理离线数据同步
 class BackgroundSync {
   constructor() {
-    this.syncQueue = "sync-queue";
+    this.syncQueue = "sync-queue"; // 同步队列标识
     this.initializeSync();
   }
 
   initializeSync() {
-    // 注册后台同步事件
+    // 注册后台同步事件监听器
+    // 当浏览器检测到网络恢复时会触发此事件
     self.addEventListener("sync", (event) => {
       if (event.tag === this.syncQueue) {
+        console.log('后台同步事件触发:', event.tag);
+        // 等待同步队列处理完成
         event.waitUntil(this.processQueue());
       }
     });
 
-    // 监听消息事件
+    // 监听来自主线程的消息
+    // 用于接收需要同步的数据
     self.addEventListener("message", (event) => {
       if (event.data.type === "QUEUE_SYNC") {
+        console.log('收到同步请求:', event.data.payload);
         this.queueSync(event.data.payload);
       }
     });
   }
 
-  // 队列同步任务
+  // 队列同步任务 - 核心同步逻辑
   async queueSync(data) {
     try {
-      // 尝试立即发送
+      // 首先尝试立即发送数据
+      console.log('尝试立即同步数据:', data);
       const response = await fetch("/api/sync", {
         method: "POST",
         headers: {
@@ -320,62 +497,105 @@ class BackgroundSync {
       if (response.ok) {
         console.log("数据同步成功");
         return;
+      } else {
+        console.log('服务器响应错误:', response.status);
+        throw new Error(`HTTP ${response.status}`);
       }
     } catch (error) {
-      console.log("网络不可用，添加到同步队列");
+      console.log("网络不可用，添加到同步队列", error.message);
     }
 
-    // 网络不可用，存储到IndexedDB
+    // 网络不可用或请求失败，存储到本地数据库
     await this.storeForSync(data);
 
-    // 注册后台同步
+    // 注册后台同步任务
+    // 浏览器会在网络恢复时自动触发
     if (
       "serviceWorker" in navigator &&
       "sync" in window.ServiceWorkerRegistration.prototype
     ) {
-      const registration = await navigator.serviceWorker.ready;
-      await registration.sync.register(this.syncQueue);
+      try {
+        const registration = await navigator.serviceWorker.ready;
+        await registration.sync.register(this.syncQueue);
+        console.log('后台同步任务已注册');
+      } catch (error) {
+        console.error('注册后台同步失败:', error);
+      }
+    } else {
+      console.warn('浏览器不支持后台同步');
     }
   }
 
-  // 存储待同步数据
+  // 存储待同步数据到IndexedDB
+  // 当网络不可用时，将数据保存到本地数据库等待同步
   async storeForSync(data) {
     return new Promise((resolve, reject) => {
+      // 打开IndexedDB数据库
       const request = indexedDB.open("PWADatabase", 1);
 
-      request.onerror = () => reject(request.error);
+      request.onerror = () => {
+        console.error('打开数据库失败:', request.error);
+        reject(request.error);
+      };
+      
       request.onsuccess = () => {
         const db = request.result;
+        // 创建读写事务
         const transaction = db.transaction(["syncQueue"], "readwrite");
         const store = transaction.objectStore("syncQueue");
 
+        // 构造同步数据对象
         const syncData = {
-          id: Date.now(),
-          data: data,
-          timestamp: new Date().toISOString(),
+          id: Date.now(), // 使用时间戳作为唯一ID
+          data: data, // 实际需要同步的数据
+          timestamp: new Date().toISOString(), // 创建时间
+          retryCount: 0 // 重试次数
         };
 
+        console.log('存储同步数据到本地:', syncData);
         store.add(syncData);
-        transaction.oncomplete = () => resolve();
-        transaction.onerror = () => reject(transaction.error);
+        
+        transaction.oncomplete = () => {
+          console.log('数据存储成功');
+          resolve();
+        };
+        transaction.onerror = () => {
+          console.error('存储事务失败:', transaction.error);
+          reject(transaction.error);
+        };
       };
 
+      // 数据库升级时创建对象存储
       request.onupgradeneeded = (event) => {
         const db = event.target.result;
         if (!db.objectStoreNames.contains("syncQueue")) {
+          console.log('创建syncQueue对象存储');
           const store = db.createObjectStore("syncQueue", { keyPath: "id" });
+          // 创建时间戳索引，便于按时间查询
           store.createIndex("timestamp", "timestamp", { unique: false });
         }
       };
     });
   }
 
-  // 处理同步队列
+  // 处理同步队列 - 网络恢复时批量同步数据
   async processQueue() {
+    console.log('开始处理同步队列');
     const items = await this.getQueuedItems();
+    
+    if (items.length === 0) {
+      console.log('同步队列为空');
+      return;
+    }
 
+    console.log(`发现 ${items.length} 个待同步项目`);
+    let successCount = 0;
+    let failCount = 0;
+
+    // 逐个处理队列中的项目
     for (const item of items) {
       try {
+        console.log(`正在同步项目 ${item.id}:`, item.data);
         const response = await fetch("/api/sync", {
           method: "POST",
           headers: {
@@ -385,19 +605,31 @@ class BackgroundSync {
         });
 
         if (response.ok) {
+          // 同步成功，从队列中移除
           await this.removeFromQueue(item.id);
           console.log("后台同步成功:", item.id);
+          successCount++;
         } else {
-          console.log("同步失败，保留在队列中:", item.id);
+          // 服务器错误，更新重试次数但保留在队列中
+          await this.updateRetryCount(item.id);
+          console.log("同步失败，保留在队列中:", item.id, response.status);
+          failCount++;
         }
       } catch (error) {
-        console.log("同步错误:", error);
-        break; // 网络仍不可用，停止处理
+        console.log("同步错误:", error.message);
+        failCount++;
+        // 网络仍不可用，停止处理剩余项目
+        if (error.name === 'TypeError' && error.message.includes('fetch')) {
+          console.log('网络仍不可用，停止处理队列');
+          break;
+        }
       }
     }
+    
+    console.log(`队列处理完成: 成功 ${successCount}, 失败 ${failCount}`);
   }
 
-  // 获取队列中的项目
+  // 获取队列中的所有待同步项目
   async getQueuedItems() {
     return new Promise((resolve, reject) => {
       const request = indexedDB.open("PWADatabase", 1);
@@ -409,7 +641,9 @@ class BackgroundSync {
         const getAllRequest = store.getAll();
 
         getAllRequest.onsuccess = () => {
-          resolve(getAllRequest.result);
+          const items = getAllRequest.result;
+          console.log(`从队列获取到 ${items.length} 个项目`);
+          resolve(items);
         };
         getAllRequest.onerror = () => reject(getAllRequest.error);
       };
@@ -418,7 +652,7 @@ class BackgroundSync {
     });
   }
 
-  // 从队列中移除项目
+  // 从队列中移除已成功同步的项目
   async removeFromQueue(id) {
     return new Promise((resolve, reject) => {
       const request = indexedDB.open("PWADatabase", 1);
@@ -429,8 +663,58 @@ class BackgroundSync {
         const store = transaction.objectStore("syncQueue");
         const deleteRequest = store.delete(id);
 
-        deleteRequest.onsuccess = () => resolve();
-        deleteRequest.onerror = () => reject(deleteRequest.error);
+        deleteRequest.onsuccess = () => {
+          console.log(`项目 ${id} 已从同步队列中移除`);
+          resolve();
+        };
+        deleteRequest.onerror = () => {
+          console.error(`移除项目 ${id} 失败:`, deleteRequest.error);
+          reject(deleteRequest.error);
+        };
+      };
+
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  // 更新项目的重试次数
+  async updateRetryCount(id) {
+    return new Promise((resolve, reject) => {
+      const request = indexedDB.open("PWADatabase", 1);
+
+      request.onsuccess = () => {
+        const db = request.result;
+        const transaction = db.transaction(["syncQueue"], "readwrite");
+        const store = transaction.objectStore("syncQueue");
+        
+        // 先获取现有项目
+        const getRequest = store.get(id);
+        getRequest.onsuccess = () => {
+          const item = getRequest.result;
+          if (item) {
+            // 增加重试次数
+            item.retryCount = (item.retryCount || 0) + 1;
+            item.lastRetry = new Date().toISOString();
+            
+            // 如果重试次数过多，可以考虑删除或标记为失败
+            if (item.retryCount >= 5) {
+              console.warn(`项目 ${id} 重试次数过多，考虑删除`);
+              // 可以选择删除或保留但标记为失败
+              // store.delete(id);
+            }
+            
+            // 更新项目
+            const putRequest = store.put(item);
+            putRequest.onsuccess = () => {
+              console.log(`项目 ${id} 重试次数更新为 ${item.retryCount}`);
+              resolve();
+            };
+            putRequest.onerror = () => reject(putRequest.error);
+          } else {
+            resolve(); // 项目不存在，可能已被删除
+          }
+        };
+        getRequest.onerror = () => reject(getRequest.error);
       };
 
       request.onerror = () => reject(request.error);
@@ -438,31 +722,63 @@ class BackgroundSync {
   }
 }
 
-// 初始化后台同步
+// 初始化后台同步管理器
+// 在Service Worker中创建全局实例
 const backgroundSync = new BackgroundSync();
 ```
 
 ## Web App Manifest 配置
 
+Web App Manifest是PWA的核心配置文件，它定义了应用的元数据、外观和行为。通过正确配置Manifest，可以让Web应用具备类似原生应用的体验，包括安装到主屏幕、全屏显示、自定义启动画面等功能。
+
+**Manifest的核心作用：**
+- **应用安装**：定义应用如何安装到用户设备
+- **启动配置**：控制应用启动时的外观和行为
+- **品牌展示**：设置应用图标、名称、主题色等品牌元素
+- **显示模式**：定义应用的显示方式（全屏、独立窗口等）
+- **平台集成**：与操作系统深度集成，提供原生体验
+
 ### 1. 基础 Manifest 配置
 
 ```json
 {
+  // 应用完整名称，显示在安装提示和应用管理器中
   "name": "PWA示例应用",
+  
+  // 应用简短名称，显示在主屏幕图标下方（建议12个字符以内）
   "short_name": "PWADemo",
-  "description": "一个功能完整的PWA示例应用",
+  
+  // 应用描述，用于应用商店或安装提示
+  "description": "一个功能完整的PWA示例应用，展示现代Web技术的强大能力",
+  
+  // 应用启动URL，用户点击图标时打开的页面
   "start_url": "/",
+  
+  // 显示模式：standalone(独立窗口)、fullscreen(全屏)、minimal-ui(最小UI)、browser(浏览器)
   "display": "standalone",
+  
+  // 屏幕方向：portrait(竖屏)、landscape(横屏)、any(任意)
   "orientation": "portrait-primary",
+  
+  // 主题色，影响状态栏、地址栏等系统UI颜色
   "theme_color": "#2196F3",
+  
+  // 背景色，启动画面和任务切换器中显示
   "background_color": "#ffffff",
+  
+  // 应用语言
   "lang": "zh-CN",
+  
+  // 应用作用域，定义PWA控制的URL范围
   "scope": "/",
+  
+  // 应用图标数组，支持多种尺寸和用途
   "icons": [
     {
       "src": "/icons/icon-72x72.png",
       "sizes": "72x72",
       "type": "image/png",
+      // purpose: any(通用)、maskable(可遮罩)、monochrome(单色)
       "purpose": "maskable any"
     },
     {
@@ -478,18 +794,21 @@ const backgroundSync = new BackgroundSync();
       "purpose": "maskable any"
     },
     {
+      // 144x144 - Android Chrome主屏幕图标
       "src": "/icons/icon-144x144.png",
       "sizes": "144x144",
       "type": "image/png",
       "purpose": "maskable any"
     },
     {
+      // 152x152 - iOS Safari主屏幕图标
       "src": "/icons/icon-152x152.png",
       "sizes": "152x152",
       "type": "image/png",
       "purpose": "maskable any"
     },
     {
+      // 192x192 - Android Chrome安装横幅最小尺寸
       "src": "/icons/icon-192x192.png",
       "sizes": "192x192",
       "type": "image/png",
@@ -502,18 +821,21 @@ const backgroundSync = new BackgroundSync();
       "purpose": "maskable any"
     },
     {
+      // 512x512 - 推荐的最大尺寸，用于启动画面
       "src": "/icons/icon-512x512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable any"
     }
   ],
+  
+  // 应用快捷方式 - 在桌面或应用菜单中提供快速访问
   "shortcuts": [
     {
       "name": "新建文档",
       "short_name": "新建",
       "description": "快速创建新文档",
-      "url": "/new",
+      "url": "/new", // 快捷方式跳转的URL
       "icons": [
         {
           "src": "/icons/new-document.png",
@@ -534,20 +856,24 @@ const backgroundSync = new BackgroundSync();
       ]
     }
   ],
+  
+  // 应用分类，用于应用商店分类
   "categories": ["productivity", "utilities"],
+  
+  // 应用截图，用于应用商店展示
   "screenshots": [
     {
       "src": "/screenshots/desktop.png",
       "sizes": "1280x720",
       "type": "image/png",
-      "platform": "wide",
+      "platform": "wide", // wide表示桌面版截图
       "label": "桌面版截图"
     },
     {
       "src": "/screenshots/mobile.png",
       "sizes": "750x1334",
       "type": "image/png",
-      "platform": "narrow",
+      "platform": "narrow", // narrow表示移动版截图
       "label": "移动版截图"
     }
   ]
@@ -556,73 +882,110 @@ const backgroundSync = new BackgroundSync();
 
 ### 2. 应用安装管理
 
+应用安装管理是PWA用户体验的关键环节，它控制着用户如何发现、安装和管理PWA应用。良好的安装体验可以显著提升用户的采用率和留存率。
+
+**安装管理的核心功能：**
+- **安装提示控制**：自定义安装提示的时机和样式
+- **安装状态检测**：判断应用是否已安装
+- **用户引导**：提供清晰的安装指引
+- **安装分析**：跟踪安装转化率和用户行为
+- **更新管理**：处理应用更新和版本管理
+
 ```javascript
 // install-manager.js
+// PWA安装管理器 - 处理应用安装相关逻辑
 class InstallManager {
   constructor() {
-    this.deferredPrompt = null;
-    this.isInstalled = false;
+    this.deferredPrompt = null; // 存储延迟的安装提示事件
+    this.isInstalled = false; // 应用安装状态
     this.initializeInstall();
   }
 
   initializeInstall() {
-    // 监听安装提示事件
+    // 监听beforeinstallprompt事件
+    // 当浏览器检测到PWA可以安装时触发
     window.addEventListener("beforeinstallprompt", (event) => {
       console.log("PWA安装提示触发");
 
-      // 阻止默认的安装提示
+      // 阻止浏览器默认的安装提示横幅
+      // 这样我们可以控制何时显示自定义的安装UI
       event.preventDefault();
 
-      // 保存事件以便后续使用
+      // 保存事件对象，稍后用于触发安装
       this.deferredPrompt = event;
 
-      // 显示自定义安装按钮
+      // 显示我们自定义的安装按钮
       this.showInstallButton();
+      
+      // 记录安装提示显示事件
+      this.trackInstallPromptShown();
     });
 
-    // 监听应用安装事件
+    // 监听应用安装完成事件
     window.addEventListener("appinstalled", (event) => {
-      console.log("PWA已安装");
+      console.log("PWA已成功安装");
       this.isInstalled = true;
       this.hideInstallButton();
       this.trackInstallation();
+      
+      // 可以显示感谢消息或引导用户
+      this.showInstallSuccessMessage();
     });
 
-    // 检查是否已安装
+    // 初始化时检查应用是否已安装
     this.checkInstallStatus();
   }
 
-  // 检查安装状态
+  // 检查应用安装状态
+  // 使用多种方法来检测PWA是否已安装
   async checkInstallStatus() {
-    // 检查是否在独立模式下运行
+    // 方法1: 检查是否在独立显示模式下运行
+    // 如果用户从主屏幕图标启动，display-mode会是standalone
     if (window.matchMedia("(display-mode: standalone)").matches) {
+      console.log('检测到独立模式，应用已安装');
       this.isInstalled = true;
       return;
     }
 
-    // 检查是否从主屏幕启动
+    // 方法2: 检查iOS Safari的standalone模式
+    // iOS Safari使用不同的属性来表示从主屏幕启动
     if (window.navigator.standalone === true) {
+      console.log('检测到iOS独立模式，应用已安装');
       this.isInstalled = true;
       return;
     }
 
-    // 使用getInstalledRelatedApps API（实验性）
+    // 方法3: 使用实验性的getInstalledRelatedApps API
+    // 这个API可以检查相关的已安装应用
     if ("getInstalledRelatedApps" in navigator) {
       try {
         const relatedApps = await navigator.getInstalledRelatedApps();
         this.isInstalled = relatedApps.length > 0;
+        console.log('相关应用检查结果:', relatedApps);
       } catch (error) {
         console.log("无法检查相关应用:", error);
       }
     }
+    
+    // 如果没有检测到安装，更新UI状态
+    if (!this.isInstalled) {
+      console.log('应用未安装，准备显示安装提示');
+    }
   }
 
-  // 显示安装按钮
+  // 显示自定义安装按钮
   showInstallButton() {
     const installButton = document.getElementById("install-button");
     if (installButton) {
       installButton.style.display = "block";
-      installButton.addEventListener("click", () => this.promptInstall());
+      installButton.classList.add('install-available');
+      
+      // 绑定点击事件（使用once确保只绑定一次）
+      installButton.addEventListener("click", () => this.promptInstall(), { once: true });
+      
+      console.log('安装按钮已显示');
+    } else {
+      console.warn('未找到安装按钮元素');
     }
   }
 
@@ -631,47 +994,90 @@ class InstallManager {
     const installButton = document.getElementById("install-button");
     if (installButton) {
       installButton.style.display = "none";
+      installButton.classList.remove('install-available');
+      console.log('安装按钮已隐藏');
     }
   }
 
-  // 提示安装
+  // 触发安装提示
   async promptInstall() {
     if (!this.deferredPrompt) {
-      console.log("安装提示不可用");
+      console.log("安装提示不可用，可能已经安装或浏览器不支持");
       return;
     }
 
-    // 显示安装提示
-    this.deferredPrompt.prompt();
+    try {
+      // 显示浏览器的安装对话框
+      console.log('显示安装提示对话框');
+      this.deferredPrompt.prompt();
 
-    // 等待用户响应
-    const { outcome } = await this.deferredPrompt.userChoice;
+      // 等待用户的选择结果
+      const { outcome } = await this.deferredPrompt.userChoice;
+      console.log(`用户安装选择结果: ${outcome}`);
 
-    console.log(`用户选择: ${outcome}`);
-
-    if (outcome === "accepted") {
-      this.trackInstallAccepted();
-    } else {
-      this.trackInstallDismissed();
+      // 根据用户选择进行相应处理
+      if (outcome === "accepted") {
+        console.log('用户接受安装');
+        this.trackInstallAccepted();
+      } else {
+        console.log('用户拒绝安装');
+        this.trackInstallDismissed();
+      }
+    } catch (error) {
+      console.error('安装提示过程中出错:', error);
+    } finally {
+      // 清除保存的提示事件，因为它只能使用一次
+      this.deferredPrompt = null;
+      this.hideInstallButton();
     }
-
-    // 清除保存的提示
-    this.deferredPrompt = null;
-    this.hideInstallButton();
   }
 
-  // 跟踪安装事件
+  // 显示安装成功消息
+  showInstallSuccessMessage() {
+    // 可以显示toast消息或模态框
+    console.log('显示安装成功消息');
+    // 实际实现可以是:
+    // this.showToast('应用安装成功！现在可以从主屏幕访问。');
+  }
+
+  // 跟踪安装提示显示事件
+  trackInstallPromptShown() {
+    console.log('跟踪: 安装提示已显示');
+    // 发送分析事件
+    // analytics.track('install_prompt_shown');
+  }
+
+  // 跟踪用户接受安装
+  trackInstallAccepted() {
+    console.log('跟踪: 用户接受安装');
+    // analytics.track('install_accepted');
+  }
+
+  // 跟踪用户拒绝安装
+  trackInstallDismissed() {
+    console.log('跟踪: 用户拒绝安装');
+    // analytics.track('install_dismissed');
+  }
+
+  // 跟踪安装完成事件
   trackInstallation() {
-    // 发送安装成功事件到分析服务
+    console.log('跟踪: 应用安装完成');
+    // 发送安装成功事件到Google Analytics
     if (typeof gtag !== "undefined") {
       gtag("event", "pwa_install", {
         event_category: "PWA",
         event_label: "Installation Completed",
+        value: 1 // 可以用于转化跟踪
       });
     }
+    
+    // 也可以发送到其他分析服务
+    // this.sendToAnalytics('install_completed');
   }
 
+  // 重新定义跟踪方法以避免重复
   trackInstallAccepted() {
+    console.log('跟踪: 用户接受安装提示');
     if (typeof gtag !== "undefined") {
       gtag("event", "pwa_install_prompt_accepted", {
         event_category: "PWA",
@@ -681,6 +1087,7 @@ class InstallManager {
   }
 
   trackInstallDismissed() {
+    console.log('跟踪: 用户拒绝安装提示');
     if (typeof gtag !== "undefined") {
       gtag("event", "pwa_install_prompt_dismissed", {
         event_category: "PWA",
@@ -689,12 +1096,35 @@ class InstallManager {
     }
   }
 
-  // 获取安装状态
+  // 获取当前安装状态信息
+  // 返回一个包含各种安装状态的对象
   getInstallStatus() {
     return {
-      isInstalled: this.isInstalled,
-      canInstall: this.deferredPrompt !== null,
-      isStandalone: window.matchMedia("(display-mode: standalone)").matches,
+      isInstalled: this.isInstalled, // 应用是否已安装
+      canInstall: this.deferredPrompt !== null, // 是否可以触发安装
+      isStandalone: window.matchMedia("(display-mode: standalone)").matches, // 是否在独立模式运行
+      platform: this.detectPlatform(), // 检测平台信息
+      installability: this.checkInstallability() // 安装能力检查
+    };
+  }
+
+  // 检测用户平台
+  detectPlatform() {
+    const userAgent = navigator.userAgent;
+    if (/Android/i.test(userAgent)) return 'android';
+    if (/iPhone|iPad|iPod/i.test(userAgent)) return 'ios';
+    if (/Windows/i.test(userAgent)) return 'windows';
+    if (/Mac/i.test(userAgent)) return 'macos';
+    return 'unknown';
+  }
+
+  // 检查安装能力
+  checkInstallability() {
+    return {
+      hasServiceWorker: 'serviceWorker' in navigator,
+      hasManifest: document.querySelector('link[rel="manifest"]') !== null,
+      isSecure: location.protocol === 'https:' || location.hostname === 'localhost',
+      hasBeforeInstallPrompt: this.deferredPrompt !== null
     };
   }
 }
@@ -705,52 +1135,88 @@ const installManager = new InstallManager();
 
 ## 推送通知实现
 
+推送通知是PWA提升用户参与度的重要功能，它允许应用在后台向用户发送及时的信息更新。通过合理使用推送通知，可以显著提高用户的活跃度和留存率。
+
+**推送通知的核心价值：**
+- **用户重新参与**：在用户离开应用后重新吸引他们回来
+- **及时信息传递**：推送重要更新、提醒和个性化内容
+- **提升留存率**：通过相关通知保持用户活跃
+- **增强用户体验**：提供个性化和上下文相关的通知
+- **业务价值**：推动转化和用户行为
+
+**推送通知的工作流程：**
+1. **权限请求**：向用户请求通知权限
+2. **订阅创建**：生成推送订阅信息
+3. **服务器存储**：将订阅信息发送到服务器
+4. **消息推送**：服务器通过推送服务发送消息
+5. **通知显示**：Service Worker接收并显示通知
+
 ### 1. 推送通知订阅
 
 ```javascript
 // push-notifications.js
+// 推送通知管理器 - 处理推送通知的订阅、取消和管理
 class PushNotifications {
   constructor() {
+    // VAPID公钥，用于标识应用服务器
+    // 需要替换为你的实际VAPID公钥
     this.vapidPublicKey = "YOUR_VAPID_PUBLIC_KEY";
-    this.subscription = null;
+    this.subscription = null; // 当前推送订阅对象
     this.initializePush();
   }
 
   async initializePush() {
-    // 检查浏览器支持
+    // 检查浏览器是否支持推送通知
     if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
       console.log("推送通知不受支持");
+      this.showUnsupportedMessage();
       return;
     }
 
     try {
-      // 获取Service Worker注册
+      // 等待Service Worker准备就绪
       const registration = await navigator.serviceWorker.ready;
+      console.log('Service Worker已准备就绪，检查推送订阅');
 
-      // 检查现有订阅
+      // 检查是否已有现有的推送订阅
       this.subscription = await registration.pushManager.getSubscription();
 
       if (this.subscription) {
-        console.log("已存在推送订阅");
+        console.log("发现现有推送订阅", this.subscription.endpoint);
+        // 将现有订阅同步到服务器
         await this.sendSubscriptionToServer(this.subscription);
+        this.updateUIForSubscribed();
+      } else {
+        console.log("未找到推送订阅");
+        this.updateUIForUnsubscribed();
       }
     } catch (error) {
       console.error("初始化推送通知失败:", error);
+      this.handleInitializationError(error);
     }
   }
 
   // 请求通知权限
   async requestPermission() {
-    const permission = await Notification.requestPermission();
+    // 检查当前权限状态
+    let permission = Notification.permission;
+    
+    // 如果权限状态是default，请求权限
+    if (permission === 'default') {
+      permission = await Notification.requestPermission();
+    }
+
+    console.log('通知权限状态:', permission);
 
     if (permission === "granted") {
       console.log("通知权限已授予");
       return true;
     } else if (permission === "denied") {
       console.log("通知权限被拒绝");
+      this.handlePermissionDenied();
       return false;
     } else {
-      console.log("通知权限默认状态");
+      console.log("通知权限处于默认状态");
       return false;
     }
   }
@@ -758,34 +1224,51 @@ class PushNotifications {
   // 订阅推送通知
   async subscribeToPush() {
     try {
-      // 请求权限
+      console.log('开始订阅推送通知流程');
+      
+      // 首先请求通知权限
       const hasPermission = await this.requestPermission();
       if (!hasPermission) {
-        throw new Error("通知权限未授予");
+        throw new Error("通知权限未授予，无法订阅推送通知");
       }
 
-      // 获取Service Worker注册
+      // 获取Service Worker注册对象
       const registration = await navigator.serviceWorker.ready;
 
-      // 创建订阅
+      // 创建推送订阅
+      // userVisibleOnly: true 表示所有推送消息都必须显示给用户
+      // applicationServerKey: VAPID公钥，用于服务器身份验证
       this.subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: this.urlBase64ToUint8Array(this.vapidPublicKey),
       });
 
-      console.log("推送订阅成功");
+      console.log("推送订阅创建成功:", {
+        endpoint: this.subscription.endpoint,
+        keys: this.subscription.getKey ? {
+          p256dh: this.subscription.getKey('p256dh'),
+          auth: this.subscription.getKey('auth')
+        } : 'Keys not available'
+      });
 
-      // 发送订阅信息到服务器
+      // 将订阅信息发送到服务器保存
       await this.sendSubscriptionToServer(this.subscription);
+      
+      // 更新UI状态
+      this.updateUIForSubscribed();
+      
+      // 显示订阅成功消息
+      this.showSubscriptionSuccess();
 
       return this.subscription;
     } catch (error) {
       console.error("订阅推送通知失败:", error);
+      this.handleSubscriptionError(error);
       throw error;
     }
   }
 
-  // 取消订阅
+  // 取消推送订阅
   async unsubscribeFromPush() {
     if (!this.subscription) {
       console.log("没有活跃的推送订阅");
@@ -793,108 +1276,254 @@ class PushNotifications {
     }
 
     try {
-      await this.subscription.unsubscribe();
-      console.log("推送订阅已取消");
-
-      // 通知服务器删除订阅
-      await this.removeSubscriptionFromServer(this.subscription);
-
-      this.subscription = null;
+      console.log('开始取消推送订阅');
+      
+      // 取消浏览器端的订阅
+      const successful = await this.subscription.unsubscribe();
+      
+      if (successful) {
+        console.log("推送订阅已成功取消");
+        
+        // 通知服务器删除订阅记录
+        await this.removeSubscriptionFromServer(this.subscription);
+        
+        // 清除本地订阅引用
+        this.subscription = null;
+        
+        // 更新UI状态
+        this.updateUIForUnsubscribed();
+        
+        // 显示取消成功消息
+        this.showUnsubscriptionSuccess();
+      } else {
+        throw new Error('取消订阅失败');
+      }
     } catch (error) {
-      console.error("取消推送订阅失败:", error);
-      throw error;
+      console.error('取消推送订阅失败:', error);
+      this.handleUnsubscriptionError(error);
     }
+
   }
 
   // 发送订阅信息到服务器
   async sendSubscriptionToServer(subscription) {
     try {
+      console.log('正在将订阅信息发送到服务器');
+      
+      // 构建要发送的订阅数据
+      const subscriptionData = {
+        subscription: subscription,
+        userAgent: navigator.userAgent, // 用户代理信息，帮助服务器了解客户端
+        timestamp: new Date().toISOString(), // 订阅时间戳
+        url: window.location.href, // 当前页面URL
+        userId: this.getCurrentUserId(), // 用户ID（如果有的话）
+      };
+      
       const response = await fetch("/api/push/subscribe", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          "Authorization": this.getAuthToken(), // 如果需要认证
+        },
+        body: JSON.stringify(subscriptionData),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(`发送订阅信息失败: ${response.status} - ${errorData.message || response.statusText}`);
+      }
+      
+      const result = await response.json();
+      console.log('订阅信息已成功发送到服务器:', result);
+      
+      return result;
+    } catch (error) {
+      console.error('发送订阅信息到服务器失败:', error);
+      throw error;
+    }
+  }
+
+  // 从服务器删除订阅信息
+  async removeSubscriptionFromServer(subscription) {
+    try {
+      console.log('正在从服务器删除订阅信息');
+      
+      const response = await fetch("/api/push/unsubscribe", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": this.getAuthToken(),
         },
         body: JSON.stringify({
-          subscription: subscription,
-          userAgent: navigator.userAgent,
+          endpoint: subscription.endpoint,
+          userId: this.getCurrentUserId(),
           timestamp: new Date().toISOString(),
         }),
       });
 
       if (!response.ok) {
-        throw new Error("发送订阅信息失败");
+        const errorData = await response.json().catch(() => ({}));
+        console.warn(`删除服务器订阅信息失败: ${response.status} - ${errorData.message || response.statusText}`);
+        // 不抛出错误，因为本地取消订阅已经成功
+        return;
       }
-
-      console.log("订阅信息已发送到服务器");
+      
+      const result = await response.json();
+      console.log('服务器订阅信息已成功删除:', result);
+      
+      return result;
     } catch (error) {
-      console.error("发送订阅信息错误:", error);
-      throw error;
+      console.error('从服务器删除订阅信息失败:', error);
+      // 不抛出错误，因为本地取消订阅已经成功
     }
   }
 
-  // 从服务器删除订阅
-  async removeSubscriptionFromServer(subscription) {
-    try {
-      const response = await fetch("/api/push/unsubscribe", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ subscription }),
-      });
-
-      if (!response.ok) {
-        throw new Error("删除订阅信息失败");
-      }
-
-      console.log("订阅信息已从服务器删除");
-    } catch (error) {
-      console.error("删除订阅信息错误:", error);
-      throw error;
-    }
-  }
-
-  // 转换VAPID密钥格式
+  // 将Base64编码的VAPID公钥转换为Uint8Array
   urlBase64ToUint8Array(base64String) {
-    const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+    // 添加必要的填充字符
+    const padding = '='.repeat((4 - base64String.length % 4) % 4);
     const base64 = (base64String + padding)
-      .replace(/-/g, "+")
-      .replace(/_/g, "/");
+      .replace(/-/g, '+')
+      .replace(/_/g, '/');
 
+    // 解码Base64字符串
     const rawData = window.atob(base64);
     const outputArray = new Uint8Array(rawData.length);
 
     for (let i = 0; i < rawData.length; ++i) {
       outputArray[i] = rawData.charCodeAt(i);
     }
+    
+    console.log('VAPID公钥已转换为Uint8Array');
     return outputArray;
   }
 
-  // 获取订阅状态
+  // 获取当前订阅状态
   getSubscriptionStatus() {
     return {
-      isSubscribed: this.subscription !== null,
-      permission: Notification.permission,
+      isSubscribed: !!this.subscription,
+      hasPermission: Notification.permission === 'granted',
       subscription: this.subscription,
+      endpoint: this.subscription?.endpoint,
+      supportsPush: 'serviceWorker' in navigator && 'PushManager' in window,
     };
   }
+
+  // UI更新方法
+  updateUIForSubscribed() {
+    console.log('更新UI：已订阅状态');
+    const subscribeBtn = document.getElementById('subscribe-btn');
+    const unsubscribeBtn = document.getElementById('unsubscribe-btn');
+    const statusText = document.getElementById('push-status');
+    
+    if (subscribeBtn) subscribeBtn.style.display = 'none';
+    if (unsubscribeBtn) unsubscribeBtn.style.display = 'block';
+    if (statusText) statusText.textContent = '推送通知已启用';
+  }
+
+  updateUIForUnsubscribed() {
+    console.log('更新UI：未订阅状态');
+    const subscribeBtn = document.getElementById('subscribe-btn');
+    const unsubscribeBtn = document.getElementById('unsubscribe-btn');
+    const statusText = document.getElementById('push-status');
+    
+    if (subscribeBtn) subscribeBtn.style.display = 'block';
+    if (unsubscribeBtn) unsubscribeBtn.style.display = 'none';
+    if (statusText) statusText.textContent = '推送通知未启用';
+  }
+
+  // 错误处理方法
+  handleInitializationError(error) {
+    console.error('推送通知初始化错误:', error);
+    this.showErrorMessage('推送通知初始化失败，请刷新页面重试');
+  }
+
+  handlePermissionDenied() {
+    console.log('用户拒绝了通知权限');
+    this.showErrorMessage('通知权限被拒绝，请在浏览器设置中启用通知权限');
+  }
+
+  handleSubscriptionError(error) {
+    console.error('订阅错误:', error);
+    this.showErrorMessage('订阅推送通知失败，请稍后重试');
+  }
+
+  handleUnsubscriptionError(error) {
+    console.error('取消订阅错误:', error);
+    this.showErrorMessage('取消订阅失败，请稍后重试');
+  }
+
+  // 消息显示方法
+  showUnsupportedMessage() {
+    this.showErrorMessage('您的浏览器不支持推送通知功能');
+  }
+
+  showSubscriptionSuccess() {
+    this.showSuccessMessage('推送通知订阅成功！您将收到重要更新通知。');
+  }
+
+  showUnsubscriptionSuccess() {
+    this.showSuccessMessage('推送通知已取消，您将不再收到通知。');
+  }
+
+  showErrorMessage(message) {
+    // 实现错误消息显示逻辑
+    console.error(message);
+    // 可以显示toast、弹窗等
+  }
+
+  showSuccessMessage(message) {
+    // 实现成功消息显示逻辑
+    console.log(message);
+    // 可以显示toast、弹窗等
+  }
+
+  // 工具方法
+  getCurrentUserId() {
+    // 获取当前用户ID的逻辑
+    // 可以从localStorage、cookie或其他地方获取
+    return localStorage.getItem('userId') || null;
+  }
+
+  getAuthToken() {
+    // 获取认证令牌的逻辑
+    return localStorage.getItem('authToken') || '';
+  }
+
+
+
 }
 
-// Service Worker中处理推送事件
-self.addEventListener("push", (event) => {
-  console.log("收到推送消息");
+### 2. Service Worker中的推送事件处理
 
+在Service Worker中处理推送消息是PWA推送通知系统的核心部分。Service Worker作为后台运行的脚本，能够在应用未激活时接收和处理推送消息。
+
+```javascript
+// service-worker.js - 推送事件处理
+
+// 监听推送消息事件
+self.addEventListener("push", (event) => {
+  console.log('收到推送消息事件:', event);
+  
+  // 默认通知配置
   let notificationData = {
     title: "默认标题",
     body: "默认消息内容",
-    icon: "/icons/icon-192x192.png",
-    badge: "/icons/badge-72x72.png",
-    tag: "default",
-    requireInteraction: false,
-    actions: [
+    icon: "/icons/icon-192x192.png", // 通知图标
+    badge: "/icons/badge-72x72.png", // 状态栏小图标（Android）
+    tag: "default", // 通知标签，相同标签的通知会被替换
+    requireInteraction: false, // 是否需要用户交互才能关闭
+    silent: false, // 是否静默通知
+    vibrate: [200, 100, 200], // 震动模式（毫秒）
+    timestamp: Date.now(), // 时间戳
+    data: { // 自定义数据，可在点击事件中访问
+      url: '/',
+      action: 'default'
+    },
+    actions: [ // 通知操作按钮
       {
         action: "view",
-        title: "查看",
+        title: "查看详情",
         icon: "/icons/view.png",
       },
       {
@@ -905,66 +1534,364 @@ self.addEventListener("push", (event) => {
     ],
   };
 
+  // 解析推送消息数据
   if (event.data) {
     try {
-      const data = event.data.json();
-      notificationData = { ...notificationData, ...data };
+      const pushData = event.data.json();
+      console.log('推送消息数据:', pushData);
+      
+      // 合并服务器发送的数据
+      notificationData = { ...notificationData, ...pushData };
+      
+      // 根据消息类型自定义通知
+      if (pushData.type) {
+        notificationData = customizeNotificationByType(pushData.type, notificationData);
+      }
     } catch (error) {
       console.error("解析推送数据失败:", error);
+      // 使用默认配置继续显示通知
     }
+  } else {
+    console.log('收到空推送消息，使用默认配置');
   }
 
+  // 显示通知
+  // waitUntil确保Service Worker在通知显示完成前不会被终止
   event.waitUntil(
-    self.registration.showNotification(notificationData.title, notificationData)
+    showNotificationWithFallback(notificationData)
   );
 });
 
+// 根据消息类型自定义通知
+function customizeNotificationByType(type, baseData) {
+  const customizations = {
+    'message': {
+      icon: '/icons/message.png',
+      badge: '/icons/message-badge.png',
+      requireInteraction: true,
+      actions: [
+        { action: 'reply', title: '回复', icon: '/icons/reply.png' },
+        { action: 'view', title: '查看', icon: '/icons/view.png' }
+      ]
+    },
+    'update': {
+      icon: '/icons/update.png',
+      badge: '/icons/update-badge.png',
+      tag: 'app-update',
+      actions: [
+        { action: 'update', title: '立即更新', icon: '/icons/download.png' },
+        { action: 'later', title: '稍后提醒', icon: '/icons/clock.png' }
+      ]
+    },
+    'reminder': {
+      icon: '/icons/reminder.png',
+      requireInteraction: true,
+      vibrate: [300, 200, 300],
+      actions: [
+        { action: 'complete', title: '标记完成', icon: '/icons/check.png' },
+        { action: 'snooze', title: '稍后提醒', icon: '/icons/snooze.png' }
+      ]
+    }
+  };
+
+  const customization = customizations[type];
+  if (customization) {
+    console.log(`应用 ${type} 类型的通知自定义配置`);
+    return { ...baseData, ...customization };
+  }
+
+  return baseData;
+}
+
+// 显示通知并处理错误
+async function showNotificationWithFallback(notificationData) {
+  try {
+    // 检查通知权限
+    if (Notification.permission !== 'granted') {
+      console.warn('通知权限未授予，无法显示通知');
+      return;
+    }
+
+    // 显示通知
+    await self.registration.showNotification(notificationData.title, notificationData);
+    console.log('通知已成功显示:', notificationData.title);
+    
+    // 记录通知显示事件
+    await logNotificationEvent('shown', notificationData);
+  } catch (error) {
+    console.error('显示通知失败:', error);
+    
+    // 降级处理：显示简化版通知
+    try {
+      await self.registration.showNotification(
+        notificationData.title || '新消息',
+        {
+          body: notificationData.body || '您有新的消息',
+          icon: '/icons/icon-192x192.png'
+        }
+      );
+      console.log('降级通知已显示');
+    } catch (fallbackError) {
+      console.error('降级通知也显示失败:', fallbackError);
+    }
+  }
+}
+
 // 处理通知点击事件
 self.addEventListener("notificationclick", (event) => {
-  console.log("通知被点击:", event.notification.tag);
+  console.log('通知被点击:', {
+    tag: event.notification.tag,
+    action: event.action,
+    data: event.notification.data
+  });
 
+  // 关闭通知
   event.notification.close();
 
-  if (event.action === "view") {
-    // 打开应用
-    event.waitUntil(clients.openWindow("/notifications"));
-  } else if (event.action === "dismiss") {
-    // 忽略通知
-    console.log("通知被忽略");
-  } else {
-    // 默认行为：打开应用
-    event.waitUntil(clients.openWindow("/"));
-  }
+  // 记录点击事件
+  logNotificationEvent('clicked', {
+    tag: event.notification.tag,
+    action: event.action
+  });
+
+  // 根据操作类型处理
+  const action = event.action;
+  const notificationData = event.notification.data || {};
+
+  event.waitUntil(
+    handleNotificationAction(action, notificationData)
+  );
 });
 
-// 初始化推送通知
-const pushNotifications = new PushNotifications();
+// 处理通知操作
+async function handleNotificationAction(action, data) {
+  try {
+    switch (action) {
+      case 'view':
+        // 打开指定页面
+        const viewUrl = data.url || '/notifications';
+        await openOrFocusWindow(viewUrl);
+        break;
+        
+      case 'reply':
+        // 打开回复页面
+        const replyUrl = data.replyUrl || `/messages/${data.messageId}`;
+        await openOrFocusWindow(replyUrl);
+        break;
+        
+      case 'update':
+        // 触发应用更新
+        await triggerAppUpdate();
+        break;
+        
+      case 'complete':
+        // 标记任务完成
+        await markTaskComplete(data.taskId);
+        break;
+        
+      case 'snooze':
+        // 设置稍后提醒
+        await snoozeReminder(data.reminderId);
+        break;
+        
+      case 'dismiss':
+        // 忽略通知
+        console.log('通知被忽略');
+        break;
+        
+      default:
+        // 默认行为：打开应用首页
+        await openOrFocusWindow('/');
+        break;
+    }
+  } catch (error) {
+    console.error('处理通知操作失败:', error);
+    // 降级处理：打开应用首页
+    await openOrFocusWindow('/').catch(console.error);
+  }
+}
+
+// 打开或聚焦窗口
+async function openOrFocusWindow(url) {
+  try {
+    // 获取所有客户端窗口
+    const clientList = await clients.matchAll({
+      type: 'window',
+      includeUncontrolled: true
+    });
+
+    // 查找已打开的匹配窗口
+    for (const client of clientList) {
+      if (client.url === url && 'focus' in client) {
+        console.log('聚焦现有窗口:', url);
+        return client.focus();
+      }
+    }
+
+    // 如果没有找到匹配窗口，打开新窗口
+    if (clients.openWindow) {
+      console.log('打开新窗口:', url);
+      return clients.openWindow(url);
+    }
+  } catch (error) {
+    console.error('打开或聚焦窗口失败:', error);
+    throw error;
+  }
+}
+
+// 记录通知事件
+async function logNotificationEvent(eventType, data) {
+  try {
+    // 可以发送到分析服务或本地存储
+    const eventData = {
+      type: eventType,
+      timestamp: Date.now(),
+      data: data
+    };
+    
+    console.log('通知事件记录:', eventData);
+    
+    // 发送到服务器进行分析
+    await fetch('/api/analytics/notification-events', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(eventData)
+    }).catch(error => {
+      console.warn('发送通知事件分析数据失败:', error);
+    });
+  } catch (error) {
+    console.error('记录通知事件失败:', error);
+  }
+}
+
+// 触发应用更新
+async function triggerAppUpdate() {
+  try {
+    // 检查是否有新的Service Worker等待
+    const registration = await self.registration;
+    if (registration.waiting) {
+      // 发送消息给等待的Service Worker
+      registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+      console.log('触发Service Worker更新');
+    }
+  } catch (error) {
+    console.error('触发应用更新失败:', error);
+  }
+}
+
+// 标记任务完成
+async function markTaskComplete(taskId) {
+  try {
+    if (!taskId) return;
+    
+    await fetch(`/api/tasks/${taskId}/complete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    
+    console.log('任务已标记完成:', taskId);
+  } catch (error) {
+    console.error('标记任务完成失败:', error);
+  }
+}
+
+// 设置稍后提醒
+async function snoozeReminder(reminderId) {
+  try {
+    if (!reminderId) return;
+    
+    await fetch(`/api/reminders/${reminderId}/snooze`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ snoozeMinutes: 15 }) // 15分钟后提醒
+    });
+    
+    console.log('提醒已延后:', reminderId);
+  } catch (error) {
+    console.error('设置稍后提醒失败:', error);
+  }
+}
+
+// 处理通知关闭事件
+self.addEventListener('notificationclose', (event) => {
+  console.log('通知被关闭:', event.notification.tag);
+  
+  // 记录关闭事件
+  logNotificationEvent('closed', {
+    tag: event.notification.tag,
+    data: event.notification.data
+  });
+});
+
+// 初始化推送通知管理器
+// 注意：这行代码应该在主线程中执行，不是在Service Worker中
+// const pushNotifications = new PushNotifications();
 ```
 
 ## PWA 性能优化
 
+PWA性能优化是提升用户体验的关键环节。通过合理的资源管理、缓存策略和加载优化，可以显著提升应用的响应速度和用户满意度。
+
+**性能优化的核心目标：**
+- **快速加载**：减少首屏加载时间，提升用户体验
+- **流畅交互**：确保应用响应迅速，交互流畅
+- **资源效率**：合理利用网络和存储资源
+- **离线可用**：在网络不佳时仍能提供基本功能
+- **渐进增强**：根据设备能力提供最佳体验
+
+**性能优化策略：**
+1. **资源预加载**：提前加载关键资源
+2. **代码分割**：按需加载代码模块
+3. **图片优化**：使用现代图片格式和懒加载
+4. **缓存优化**：智能缓存策略
+5. **网络优化**：减少请求次数和大小
+
 ### 1. 资源预加载策略
+
+资源预加载是一种主动的性能优化技术，通过提前加载用户可能需要的资源来减少等待时间。合理的预加载策略可以显著提升用户体验。
 
 ```javascript
 // preload-strategy.js
+// 资源预加载策略管理器
 class PreloadStrategy {
   constructor() {
+    // 定义关键资源列表
+    // 这些资源对应用的核心功能至关重要
     this.criticalResources = [
-      "/static/css/critical.css",
-      "/static/js/app.js",
-      "/api/user/profile",
+      "/static/css/critical.css", // 关键样式文件
+      "/static/js/app.js", // 主应用脚本
+      "/api/user/profile", // 用户配置信息
+      "/static/fonts/main.woff2", // 主要字体文件
     ];
+    
+    // 预加载配置
+    this.preloadConfig = {
+      maxConcurrent: 3, // 最大并发预加载数
+      timeout: 10000, // 预加载超时时间（毫秒）
+      retryAttempts: 2, // 重试次数
+      priority: 'high' // 预加载优先级
+    };
+    
+    // 预加载状态跟踪
+    this.preloadStatus = new Map();
+    this.preloadQueue = [];
+    this.activePreloads = 0;
+    
     this.initializePreloading();
   }
 
   initializePreloading() {
-    // 页面加载完成后预加载资源
+    console.log('初始化资源预加载策略');
+    
+    // 根据页面加载状态决定何时开始预加载
     if (document.readyState === "loading") {
+      // 页面仍在加载，等待DOM准备完成
       document.addEventListener("DOMContentLoaded", () => {
-        this.preloadCriticalResources();
+        this.startPreloading();
       });
     } else {
-      this.preloadCriticalResources();
+      // 页面已加载完成，立即开始预加载
+      this.startPreloading();
     }
 
     // 监听网络状态变化
@@ -975,61 +1902,221 @@ class PreloadStrategy {
     window.addEventListener("offline", () => {
       this.handleOffline();
     });
+    
+    // 监听页面可见性变化
+    document.addEventListener('visibilitychange', () => {
+      this.handleVisibilityChange();
+    });
+  }
+  
+  // 开始预加载流程
+  async startPreloading() {
+    console.log('开始预加载关键资源');
+    
+    // 检查网络状态
+    if (!navigator.onLine) {
+      console.log('当前离线，跳过预加载');
+      return;
+    }
+    
+    // 检查网络连接质量
+    const connectionInfo = this.getConnectionInfo();
+    if (connectionInfo.effectiveType === 'slow-2g') {
+      console.log('网络连接较慢，减少预加载资源');
+      this.criticalResources = this.criticalResources.slice(0, 2);
+    }
+    
+    await this.preloadCriticalResources();
   }
 
   // 预加载关键资源
   async preloadCriticalResources() {
-    const promises = this.criticalResources.map((url) => {
-      return this.preloadResource(url);
+    console.log('开始预加载关键资源列表:', this.criticalResources);
+    
+    // 使用Promise.allSettled确保即使部分资源失败也能继续
+    const promises = this.criticalResources.map((url, index) => {
+      return this.schedulePreload(url, index);
     });
 
     try {
-      await Promise.allSettled(promises);
-      console.log("关键资源预加载完成");
+      const results = await Promise.allSettled(promises);
+      
+      // 分析预加载结果
+      const successful = results.filter(r => r.status === 'fulfilled').length;
+      const failed = results.filter(r => r.status === 'rejected').length;
+      
+      console.log(`关键资源预加载完成: 成功 ${successful}, 失败 ${failed}`);
+      
+      // 记录预加载性能指标
+      this.recordPreloadMetrics(results);
     } catch (error) {
-      console.error("预加载失败:", error);
+      console.error("预加载过程出现错误:", error);
+    }
+  }
+  
+  // 调度预加载任务
+  async schedulePreload(url, priority = 0) {
+    return new Promise((resolve, reject) => {
+      const task = {
+        url,
+        priority,
+        resolve,
+        reject,
+        attempts: 0,
+        startTime: Date.now()
+      };
+      
+      this.preloadQueue.push(task);
+      this.processPreloadQueue();
+    });
+  }
+  
+  // 处理预加载队列
+  async processPreloadQueue() {
+    // 检查是否达到最大并发数
+    if (this.activePreloads >= this.preloadConfig.maxConcurrent) {
+      return;
+    }
+    
+    // 按优先级排序队列
+    this.preloadQueue.sort((a, b) => b.priority - a.priority);
+    
+    const task = this.preloadQueue.shift();
+    if (!task) return;
+    
+    this.activePreloads++;
+    
+    try {
+      const result = await this.preloadResource(task.url);
+      task.resolve(result);
+    } catch (error) {
+      // 重试逻辑
+      task.attempts++;
+      if (task.attempts < this.preloadConfig.retryAttempts) {
+        console.log(`预加载重试 ${task.url}, 尝试 ${task.attempts + 1}`);
+        this.preloadQueue.unshift(task); // 重新加入队列头部
+      } else {
+        task.reject(error);
+      }
+    } finally {
+      this.activePreloads--;
+      // 继续处理队列中的下一个任务
+      this.processPreloadQueue();
     }
   }
 
   // 预加载单个资源
   async preloadResource(url) {
     try {
+      console.log(`开始预加载资源: ${url}`);
+      
       // 检查缓存中是否已存在
       const cachedResponse = await caches.match(url);
       if (cachedResponse) {
-        console.log(`资源已缓存: ${url}`);
+        console.log(`资源已在缓存中: ${url}`);
+        this.preloadStatus.set(url, { status: 'cached', timestamp: Date.now() });
         return cachedResponse;
       }
 
+      // 创建带超时的fetch请求
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => {
+        controller.abort();
+      }, this.preloadConfig.timeout);
+      
       // 发起预加载请求
       const response = await fetch(url, {
         mode: "cors",
         credentials: "same-origin",
+        signal: controller.signal,
+        // 设置资源优先级
+        priority: this.preloadConfig.priority
       });
+      
+      clearTimeout(timeoutId);
 
       if (response.ok) {
         // 将响应添加到缓存
-        const cache = await caches.open("preload-cache");
+        const cache = await caches.open("preload-cache-v1");
         await cache.put(url, response.clone());
+        
         console.log(`资源预加载成功: ${url}`);
+        this.preloadStatus.set(url, { 
+          status: 'loaded', 
+          timestamp: Date.now(),
+          size: response.headers.get('content-length') || 'unknown'
+        });
+      } else {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
 
       return response;
     } catch (error) {
-      console.error(`预加载失败 ${url}:`, error);
+      console.error(`预加载失败 ${url}:`, error.message);
+      this.preloadStatus.set(url, { 
+        status: 'failed', 
+        timestamp: Date.now(),
+        error: error.message
+      });
       throw error;
     }
   }
 
   // 智能预加载（基于用户行为）
   enableIntelligentPreloading() {
-    // 监听鼠标悬停事件
+    console.log('启用智能预加载功能');
+    
+    // 防抖函数，避免频繁触发预加载
+    const debouncedPreload = this.debounce((url) => {
+      this.preloadResource(url);
+    }, 100);
+    
+    // 监听鼠标悬停事件（预测用户可能点击的链接）
     document.addEventListener("mouseover", (event) => {
       const link = event.target.closest("a[href]");
       if (link && this.shouldPreload(link.href)) {
+        console.log('检测到鼠标悬停，预加载:', link.href);
+        debouncedPreload(link.href);
+      }
+    });
+    
+    // 监听触摸开始事件（移动设备）
+    document.addEventListener("touchstart", (event) => {
+      const link = event.target.closest("a[href]");
+      if (link && this.shouldPreload(link.href)) {
+        console.log('检测到触摸开始，预加载:', link.href);
         this.preloadResource(link.href);
       }
     });
+    
+    // 基于Intersection Observer的可见性预加载
+    this.enableViewportPreloading();
+  }
+  
+  // 启用视口预加载
+  enableViewportPreloading() {
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          const element = entry.target;
+          const preloadUrl = element.dataset.preload;
+          
+          if (preloadUrl && this.shouldPreload(preloadUrl)) {
+            console.log('元素进入视口，预加载:', preloadUrl);
+            this.preloadResource(preloadUrl);
+            observer.unobserve(element); // 预加载后停止观察
+          }
+        }
+      });
+    }, {
+      rootMargin: '50px' // 提前50px开始预加载
+    });
+    
+    // 观察所有带有data-preload属性的元素
+    document.querySelectorAll('[data-preload]').forEach(element => {
+      observer.observe(element);
+    });
+  }
 
     // 监听触摸开始事件（移动设备）
     document.addEventListener("touchstart", (event) => {

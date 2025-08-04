@@ -7,6 +7,9 @@ import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import Twemoji from '@/components/ui/Twemoji';
+import Mermaid from '@/components/ui/Mermaid';
+import ArchitectureDiagram, { architectureConfigs } from '@/components/ui/ArchitectureDiagram';
+import Image from 'next/image';
 
 interface MDXContentProps {
   content: string;
@@ -41,6 +44,11 @@ const components = {
     const { children, className, ...rest } = props;
     const match = /language-(\w+)/.exec(className || '');
     const language = match ? match[1] : '';
+    
+    // Handle Mermaid diagrams
+    if (language === 'mermaid') {
+      return <Mermaid chart={String(children).replace(/\n$/, '')} />;
+    }
     
     if (className?.includes('language-')) {
       return (
@@ -98,8 +106,56 @@ const components = {
   td: (props: any) => (
     <td className="px-4 py-3 text-gray-700 dark:text-gray-300 border-r border-gray-300 dark:border-gray-600 last:border-r-0" {...props} />
   ),
+  // Image component with Next.js optimization
+  img: (props: any) => {
+    const { src, alt, width, height, ...rest } = props;
+    
+    // Handle external images or local images
+    if (src?.startsWith('http') || src?.startsWith('https')) {
+      return (
+        <div className="my-6 text-center">
+          <img
+            src={src}
+            alt={alt || ''}
+            className="max-w-full h-auto rounded-lg shadow-md mx-auto"
+            loading="lazy"
+            {...rest}
+          />
+          {alt && (
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-2 italic">
+              {alt}
+            </p>
+          )}
+        </div>
+      );
+    }
+    
+    // For local images, use Next.js Image component
+    return (
+      <div className="my-6 text-center">
+        <Image
+          src={src}
+          alt={alt || ''}
+          width={width || 800}
+          height={height || 600}
+          className="max-w-full h-auto rounded-lg shadow-md mx-auto"
+          {...rest}
+        />
+        {alt && (
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-2 italic">
+            {alt}
+          </p>
+        )}
+      </div>
+    );
+  },
   Twemoji,
+  Mermaid,
+  ArchitectureDiagram,
 };
+
+// 导出架构图配置供MDX文件使用
+export { architectureConfigs };
 
 export default function MDXContent({ content }: MDXContentProps) {
   const [mdxSource, setMdxSource] = useState<MDXRemoteSerializeResult | null>(null);

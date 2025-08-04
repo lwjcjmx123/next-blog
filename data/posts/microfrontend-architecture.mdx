@@ -32,42 +32,56 @@ readingTime: 18
 
 ### 1. 路由分发式
 
-这是最简单的微前端实现方式，通过路由将不同的页面分发给不同的微应用：
+这是最简单的微前端实现方式，通过路由将不同的页面分发给不同的微应用。这种方式的核心思想是按照路由规则将用户请求分发到对应的微应用，每个微应用负责处理特定的业务模块。
+
+**实现原理：**
+
+- 在前端路由层面，根据 URL 路径动态加载对应的微应用
+- 在服务器层面，通过反向代理将请求转发到不同的微应用服务
+- 每个微应用都是完全独立的，拥有自己的域名或子路径
+
+下面的代码展示了如何在前端路由和 Nginx 服务器层面实现路由分发：
 
 ```javascript
 // 主应用路由配置
+// 这里使用动态导入的方式，当用户访问特定路由时才加载对应的微应用
 const routes = [
   {
-    path: '/user/*',
-    component: () => import('@user-app/main')
+    path: '/user/*', // 用户管理相关的所有路由
+    component: () => import('@user-app/main') // 懒加载用户管理微应用
   },
   {
-    path: '/order/*',
-    component: () => import('@order-app/main')
+    path: '/order/*', // 订单管理相关的所有路由
+    component: () => import('@order-app/main') // 懒加载订单管理微应用
   },
   {
-    path: '/product/*',
-    component: () => import('@product-app/main')
+    path: '/product/*', // 商品管理相关的所有路由
+    component: () => import('@product-app/main') // 懒加载商品管理微应用
   }
 ];
 
 // Nginx 配置示例
+// 在服务器层面实现请求分发，将不同路径的请求转发到对应的微应用服务
 server {
   listen 80;
   server_name example.com;
-  
+
+  # 用户管理微应用
   location /user {
     proxy_pass http://user-app:3001;
   }
-  
+
+  # 订单管理微应用
   location /order {
     proxy_pass http://order-app:3002;
   }
-  
+
+  # 商品管理微应用
   location /product {
     proxy_pass http://product-app:3003;
   }
-  
+
+  # 主应用（默认路由）
   location / {
     proxy_pass http://main-app:3000;
   }
@@ -76,21 +90,33 @@ server {
 
 ### 2. 主从式（容器应用模式）
 
-主应用作为容器，负责微应用的加载、卸载和通信：
+主从式是目前最主流的微前端架构模式，主应用作为容器和调度中心，负责微应用的注册、加载、卸载和生命周期管理。这种模式提供了更精细的控制能力，支持应用间的隔离和通信。
+
+**核心特点：**
+
+- **统一入口**：主应用作为唯一入口，管理所有微应用
+- **动态加载**：根据路由规则动态加载和卸载微应用
+- **沙箱隔离**：为每个微应用提供独立的运行环境
+- **生命周期管理**：统一管理微应用的启动、挂载、卸载等生命周期
+
+下面的代码展示了一个完整的微前端管理器实现，包括应用注册、加载机制和沙箱隔离：
 
 ```javascript
-// 主应用 - 微应用注册
+// 主应用 - 微应用管理器
+// 这个类负责管理所有微应用的生命周期，包括注册、加载、卸载等操作
 class MicroAppManager {
-  private apps: Map<string, MicroApp> = new Map();
-  private currentApp: string | null = null;
+  private apps: Map<string, MicroApp> = new Map(); // 存储所有注册的微应用
+  private currentApp: string | null = null; // 当前激活的微应用
 
+  // 注册微应用
   registerApp(config: MicroAppConfig) {
     const app = new MicroApp(config);
     this.apps.set(config.name, app);
   }
 
+  // 加载指定的微应用
   async loadApp(name: string, container: HTMLElement) {
-    // 卸载当前应用
+    // 如果当前有其他应用在运行，先卸载它
     if (this.currentApp && this.currentApp !== name) {
       await this.unloadApp(this.currentApp);
     }
@@ -100,11 +126,12 @@ class MicroAppManager {
       throw new Error(`App ${name} not found`);
     }
 
-    // 加载新应用
+    // 加载新的微应用
     await app.load(container);
     this.currentApp = name;
   }
 
+  // 卸载指定的微应用
   async unloadApp(name: string) {
     const app = this.apps.get(name);
     if (app) {
@@ -113,62 +140,74 @@ class MicroAppManager {
   }
 }
 
-// 微应用接口定义
+// 微应用配置接口定义
+// 定义了微应用的基本配置信息
 interface MicroAppConfig {
-  name: string;
-  entry: string;
-  container: string;
-  activeRule: string | ((location: Location) => boolean);
+  name: string; // 应用名称
+  entry: string; // 应用入口地址
+  container: string; // 挂载容器选择器
+  activeRule: string | ((location: Location) => boolean); // 激活规则
 }
 
+// 微应用类
+// 封装了单个微应用的加载、运行和卸载逻辑
 class MicroApp {
   private config: MicroAppConfig;
-  private sandbox: Sandbox;
-  private lifecycle: AppLifecycle;
+  private sandbox: Sandbox; // 沙箱实例，用于隔离应用环境
+  private lifecycle: AppLifecycle; // 生命周期管理器
 
   constructor(config: MicroAppConfig) {
     this.config = config;
-    this.sandbox = new Sandbox();
-    this.lifecycle = new AppLifecycle();
+    this.sandbox = new Sandbox(); // 创建独立的沙箱环境
+    this.lifecycle = new AppLifecycle(); // 创建生命周期管理器
   }
 
+  // 加载微应用
   async load(container: HTMLElement) {
-    // 创建沙箱环境
+    // 1. 启动沙箱环境，隔离全局变量和副作用
     this.sandbox.start();
-    
-    // 获取应用资源
+
+    // 2. 获取应用的HTML、CSS、JS资源
     const { template, scripts, styles } = await this.fetchApp();
-    
-    // 渲染应用
+
+    // 3. 将HTML模板渲染到指定容器
     container.innerHTML = template;
-    
-    // 加载样式
+
+    // 4. 加载样式文件
     this.loadStyles(styles);
-    
-    // 执行脚本
+
+    // 5. 在沙箱环境中执行JavaScript代码
     await this.executeScripts(scripts);
-    
-    // 调用生命周期
+
+    // 6. 调用微应用的挂载生命周期
     await this.lifecycle.mount();
   }
 
+  // 卸载微应用
   async unload() {
+    // 调用卸载生命周期，清理应用状态
     await this.lifecycle.unmount();
+    // 停止沙箱，恢复全局环境
     this.sandbox.stop();
   }
 
+  // 获取微应用资源
   private async fetchApp() {
     const response = await fetch(this.config.entry);
     const html = await response.text();
-    
+
     return this.parseHTML(html);
   }
 
+  // 解析HTML，提取模板、脚本和样式
   private parseHTML(html: string) {
+    // 移除script标签，获取纯HTML模板
     const template = html.replace(/<script[^>]*>.*?<\/script>/gi, '');
+    // 提取所有script标签的内容
     const scripts = this.extractScripts(html);
+    // 提取所有style和link标签的内容
     const styles = this.extractStyles(html);
-    
+
     return { template, scripts, styles };
   }
 }
@@ -176,37 +215,51 @@ class MicroApp {
 
 ### 3. 组合式（微组件模式）
 
-将微应用作为组件在同一页面中组合使用：
+组合式微前端是一种更加灵活的集成方式，将微应用封装为可复用的组件，可以在主应用的任意位置使用。这种模式特别适合需要在同一页面展示多个微应用或者需要微应用作为页面局部功能的场景。
+
+**核心优势：**
+
+- **灵活布局**：可以在页面任意位置嵌入微应用
+- **组件复用**：微应用可以作为组件在多个地方使用
+- **渐进集成**：可以逐步将现有功能模块改造为微前端
+- **技术栈无关**：支持不同框架的微应用组件化
+
+下面展示了 React 和 Vue 两种主流框架的微前端组件实现：
 
 ```javascript
 // React 组件式微前端
+// 使用专门的微前端组件库，实现声明式的微应用集成
 import { MicroApp } from '@micro-frontend/react';
 
+// 仪表板页面 - 展示如何在一个页面中组合多个微应用
 function Dashboard() {
   return (
     <div className="dashboard">
+      {/* 头部微应用 - 负责导航和用户信息 */}
       <header>
-        <MicroApp 
+        <MicroApp
           name="header-app"
-          entry="//localhost:3001"
-          props={{ user: currentUser }}
+          entry="//localhost:3001" // 头部应用的入口地址
+          props={{ user: currentUser }} // 传递当前用户信息
         />
       </header>
-      
+
       <main className="main-content">
+        {/* 侧边栏微应用 - 负责菜单导航 */}
         <aside>
-          <MicroApp 
+          <MicroApp
             name="sidebar-app"
             entry="//localhost:3002"
-            props={{ activeMenu: 'dashboard' }}
+            props={{ activeMenu: 'dashboard' }} // 传递当前激活的菜单项
           />
         </aside>
-        
+
+        {/* 主内容微应用 - 负责核心业务逻辑 */}
         <section>
-          <MicroApp 
+          <MicroApp
             name="content-app"
             entry="//localhost:3003"
-            props={{ data: dashboardData }}
+            props={{ data: dashboardData }} // 传递仪表板数据
           />
         </section>
       </main>
@@ -215,13 +268,21 @@ function Dashboard() {
 }
 
 // Vue 组件式微前端
+// 使用 micro-app 库实现 Vue 框架下的微前端组件
 <template>
   <div class="page">
-    <micro-app 
+    <!--
+      micro-app 组件提供了完整的微前端能力
+      - name: 微应用的唯一标识
+      - url: 微应用的入口地址
+      - data: 向微应用传递的数据
+      - @datachange: 监听微应用数据变化的事件
+    -->
+    <micro-app
       name="user-center"
       url="//localhost:3001"
-      :data="{ userId: 123 }"
-      @datachange="handleDataChange"
+      :data="{ userId: 123 }" // 响应式数据传递
+      @datachange="handleDataChange" // 数据变化监听
     />
   </div>
 </template>
@@ -231,8 +292,10 @@ import microApp from '@micro-zoe/micro-app';
 
 export default {
   methods: {
+    // 处理来自微应用的数据变化
     handleDataChange(data) {
       console.log('接收到微应用数据：', data);
+      // 可以在这里处理微应用传递的数据，实现应用间通信
     }
   }
 };
@@ -243,143 +306,201 @@ export default {
 
 ### 1. qiankun 方案
 
-qiankun 是基于 single-spa 的微前端实现库，提供了开箱即用的微前端解决方案：
+qiankun 是阿里巴巴开源的基于 single-spa 的微前端实现库，提供了开箱即用的微前端解决方案。它解决了微前端架构中的核心问题：应用加载、沙箱隔离、应用通信等，是目前最成熟和广泛使用的微前端框架之一。
+
+**核心特性：**
+
+- **技术栈无关**：支持任意技术栈的微应用接入
+- **HTML Entry**：通过 HTML 作为入口，简化微应用接入
+- **样式隔离**：自动进行 CSS 样式隔离
+- **JS 沙箱**：提供多种 JS 沙箱方案
+- **资源预加载**：支持微应用资源预加载
+
+#### 主应用配置
 
 ```javascript
 // 主应用配置
-import { registerMicroApps, start } from 'qiankun';
+// 导入qiankun的核心API
+import { registerMicroApps, start } from "qiankun";
 
-// 注册微应用
+// 注册微应用列表
+// 每个微应用需要定义名称、入口、容器、激活规则等配置
 registerMicroApps([
   {
-    name: 'react-app',
-    entry: '//localhost:3001',
-    container: '#react-container',
-    activeRule: '/react',
+    name: "react-app", // 微应用名称，必须唯一
+    entry: "//localhost:3001", // 微应用的HTML入口地址
+    container: "#react-container", // 微应用挂载的DOM容器
+    activeRule: "/react", // 微应用的激活路由规则
     props: {
-      routerBase: '/react',
-      getGlobalState: () => globalState
-    }
+      routerBase: "/react", // 传递给微应用的路由基础路径
+      getGlobalState: () => globalState, // 传递全局状态获取函数
+    },
   },
   {
-    name: 'vue-app',
-    entry: '//localhost:3002',
-    container: '#vue-container',
-    activeRule: '/vue',
+    name: "vue-app",
+    entry: "//localhost:3002",
+    container: "#vue-container",
+    activeRule: "/vue",
     props: {
-      routerBase: '/vue'
-    }
-  }
+      routerBase: "/vue", // Vue应用的路由基础路径
+    },
+  },
 ]);
 
-// 启动 qiankun
+// 启动qiankun微前端框架
 start({
   sandbox: {
-    strictStyleIsolation: true,
-    experimentalStyleIsolation: true
+    strictStyleIsolation: true, // 开启严格样式隔离
+    experimentalStyleIsolation: true, // 开启实验性样式隔离
   },
-  prefetch: 'all'
+  prefetch: "all", // 预加载所有微应用资源
 });
+```
 
+#### 微应用改造
+
+微应用需要进行少量改造以支持 qiankun 的加载机制，主要包括公共路径配置和生命周期函数导出：
+
+```javascript
 // 微应用改造 - React 应用
 // src/public-path.js
+// 动态设置webpack的公共路径，确保资源能正确加载
 if (window.__POWERED_BY_QIANKUN__) {
+  // qiankun会注入这个变量，指向正确的资源路径
   __webpack_public_path__ = window.__INJECTED_PUBLIC_PATH_BY_QIANKUN__;
 }
 
 // src/index.js
-import './public-path';
-import React from 'react';
-import ReactDOM from 'react-dom';
-import App from './App';
+import "./public-path"; // 必须在最顶部引入
+import React from "react";
+import ReactDOM from "react-dom";
+import App from "./App";
 
+// 渲染函数 - 支持独立运行和微前端模式
 function render(props = {}) {
   const { container } = props;
-  const dom = container ? container.querySelector('#root') : document.querySelector('#root');
-  
+  // 微前端模式下使用传入的容器，独立运行时使用默认容器
+  const dom = container
+    ? container.querySelector("#root")
+    : document.querySelector("#root");
+
   ReactDOM.render(<App />, dom);
 }
 
-// 独立运行时直接渲染
+// 独立运行时直接渲染（开发调试时使用）
 if (!window.__POWERED_BY_QIANKUN__) {
   render();
 }
 
-// 导出生命周期函数
+// 导出qiankun要求的生命周期函数
+
+// bootstrap: 微应用初始化时调用，只会调用一次
 export async function bootstrap() {
-  console.log('[react16] react app bootstraped');
+  console.log("[react16] react app bootstraped");
+  // 可以在这里进行一些初始化工作
 }
 
+// mount: 微应用挂载时调用，每次激活时都会调用
 export async function mount(props) {
-  console.log('[react16] props from main framework', props);
+  console.log("[react16] props from main framework", props);
+  // 接收主应用传递的props，包括容器、路由等信息
   render(props);
 }
 
+// unmount: 微应用卸载时调用，切换到其他应用时会调用
 export async function unmount(props) {
   const { container } = props;
-  const dom = container ? container.querySelector('#root') : document.querySelector('#root');
+  const dom = container
+    ? container.querySelector("#root")
+    : document.querySelector("#root");
+  // 清理DOM，避免内存泄漏
   ReactDOM.unmountComponentAtNode(dom);
 }
 ```
 
 ### 2. Module Federation 方案
 
-Webpack 5 的 Module Federation 提供了原生的微前端支持：
+Webpack 5 的 Module Federation（模块联邦）是一种革命性的微前端解决方案，它在构建时就实现了模块的联邦化，允许不同的应用在运行时动态加载和共享模块。这种方案提供了更细粒度的代码共享和更好的性能优化。
+
+**核心优势：**
+
+- **原生支持**：Webpack 5 内置，无需额外框架
+- **模块级共享**：可以共享任意粒度的模块
+- **版本管理**：自动处理依赖版本冲突
+- **按需加载**：真正的按需加载，减少 bundle 大小
+- **独立部署**：每个应用可以独立构建和部署
+
+#### 主应用配置
 
 ```javascript
-// webpack.config.js - 主应用
-const ModuleFederationPlugin = require('@module-federation/webpack');
+// webpack.config.js - 主应用（Shell应用）
+const ModuleFederationPlugin = require("@module-federation/webpack");
 
 module.exports = {
-  mode: 'development',
+  mode: "development",
   devServer: {
-    port: 3000,
+    port: 3000, // 主应用端口
   },
   plugins: [
     new ModuleFederationPlugin({
-      name: 'shell',
+      name: "shell", // 主应用名称
+      // 定义远程应用列表，指定从哪里加载微应用
       remotes: {
-        userApp: 'userApp@http://localhost:3001/remoteEntry.js',
-        orderApp: 'orderApp@http://localhost:3002/remoteEntry.js',
+        // 格式：本地名称: '远程应用名@远程入口地址'
+        userApp: "userApp@http://localhost:3001/remoteEntry.js",
+        orderApp: "orderApp@http://localhost:3002/remoteEntry.js",
       },
     }),
   ],
 };
+```
 
+#### 微应用配置
+
+```javascript
 // webpack.config.js - 微应用
-const ModuleFederationPlugin = require('@module-federation/webpack');
+const ModuleFederationPlugin = require("@module-federation/webpack");
 
 module.exports = {
-  mode: 'development',
+  mode: "development",
   devServer: {
-    port: 3001,
+    port: 3001, // 微应用端口
   },
   plugins: [
     new ModuleFederationPlugin({
-      name: 'userApp',
-      filename: 'remoteEntry.js',
+      name: "userApp", // 微应用名称，必须与主应用中的配置一致
+      filename: "remoteEntry.js", // 暴露的入口文件名
+      // 定义要暴露给其他应用的模块
       exposes: {
-        './UserApp': './src/UserApp',
-        './UserList': './src/components/UserList',
+        "./UserApp": "./src/UserApp", // 暴露整个用户应用
+        "./UserList": "./src/components/UserList", // 暴露用户列表组件
       },
+      // 共享依赖配置，避免重复加载
       shared: {
-        react: { singleton: true },
-        'react-dom': { singleton: true },
+        react: { singleton: true }, // React必须是单例
+        "react-dom": { singleton: true }, // ReactDOM必须是单例
       },
     }),
   ],
 };
+```
 
+#### 主应用中使用微应用
+
+```javascript
 // 主应用中使用微应用
-import React, { Suspense } from 'react';
+import React, { Suspense } from "react";
 
-const UserApp = React.lazy(() => import('userApp/UserApp'));
-const OrderApp = React.lazy(() => import('orderApp/OrderApp'));
+// 使用React.lazy动态导入远程模块
+// 这些模块在运行时从远程应用加载
+const UserApp = React.lazy(() => import("userApp/UserApp"));
+const OrderApp = React.lazy(() => import("orderApp/OrderApp"));
 
 function App() {
   return (
     <div>
       <h1>主应用</h1>
+      {/* 使用Suspense包装远程组件，提供加载状态 */}
       <Suspense fallback={<div>Loading User App...</div>}>
         <UserApp />
       </Suspense>
@@ -395,171 +516,230 @@ export default App;
 
 ## 关键技术挑战与解决方案
 
+微前端架构在带来灵活性的同时，也引入了一些技术挑战。以下是主要挑战及其解决方案：
+
 ### 1. 样式隔离
+
+样式隔离是微前端架构中最重要的问题之一，不同微应用的 CSS 样式可能会相互影响，导致页面样式混乱。以下是几种主流的样式隔离解决方案：
+
+#### CSS Modules 方案
+
+CSS Modules 通过构建时的类名哈希化来实现样式隔离，是一种编译时解决方案：
 
 ```javascript
 // CSS Modules 方案
-// webpack.config.js
+// webpack.config.js - 配置CSS Modules
 module.exports = {
   module: {
     rules: [
       {
-        test: /\.module\.css$/,
+        test: /\.module\.css$/, // 匹配.module.css文件
         use: [
-          'style-loader',
+          "style-loader",
           {
-            loader: 'css-loader',
+            loader: "css-loader",
             options: {
               modules: {
-                localIdentName: '[name]__[local]__[hash:base64:5]'
-              }
-            }
-          }
-        ]
-      }
-    ]
-  }
+                // 生成唯一的类名：文件名__类名__哈希值
+                localIdentName: "[name]__[local]__[hash:base64:5]",
+              },
+            },
+          },
+        ],
+      },
+    ],
+  },
 };
+```
 
+#### Shadow DOM 方案
+
+Shadow DOM 提供了真正的样式隔离，创建独立的 DOM 树和样式作用域：
+
+```javascript
 // Shadow DOM 方案
+// 自定义元素，为微应用提供完全隔离的环境
 class MicroAppContainer extends HTMLElement {
   constructor() {
     super();
-    this.attachShadow({ mode: 'open' });
+    // 创建Shadow DOM，实现真正的样式和DOM隔离
+    this.attachShadow({ mode: "open" });
   }
 
+  // 元素被添加到DOM时触发
   connectedCallback() {
     this.loadMicroApp();
   }
 
+  // 加载微应用到Shadow DOM中
   async loadMicroApp() {
-    const response = await fetch(this.getAttribute('src'));
+    const response = await fetch(this.getAttribute("src"));
     const html = await response.text();
-    
+
+    // 将HTML内容渲染到Shadow DOM中
     this.shadowRoot.innerHTML = html;
-    
-    // 加载样式到 Shadow DOM
+
+    // 提取并加载样式到Shadow DOM，实现样式隔离
     const styles = this.extractStyles(html);
-    styles.forEach(style => {
-      const styleElement = document.createElement('style');
+    styles.forEach((style) => {
+      const styleElement = document.createElement("style");
       styleElement.textContent = style;
       this.shadowRoot.appendChild(styleElement);
     });
   }
 }
 
-customElements.define('micro-app', MicroAppContainer);
+// 注册自定义元素
+customElements.define("micro-app", MicroAppContainer);
+```
 
+#### 运行时样式隔离
+
+运行时样式隔离通过代理和拦截 DOM 操作来实现动态的样式隔离：
+
+```javascript
 // 运行时样式隔离
+// 这个类负责在微应用运行时动态隔离样式
 class StyleSandbox {
-  private modifiedStyles: Map<HTMLStyleElement, string> = new Map();
-  private addedStyles: Set<HTMLStyleElement> = new Set();
+  private modifiedStyles: Map<HTMLStyleElement, string> = new Map(); // 记录被修改的样式
+  private addedStyles: Set<HTMLStyleElement> = new Set(); // 记录新增的样式
 
+  // 启动样式沙箱
   start() {
     this.patchStyleMethods();
   }
 
+  // 停止样式沙箱，恢复原始状态
   stop() {
-    // 恢复修改的样式
+    // 恢复被修改的样式到原始状态
     this.modifiedStyles.forEach((originalContent, styleElement) => {
       styleElement.textContent = originalContent;
     });
-    
-    // 移除新增的样式
+
+    // 移除微应用新增的样式元素
     this.addedStyles.forEach(styleElement => {
       styleElement.remove();
     });
-    
+
+    // 清理记录
     this.modifiedStyles.clear();
     this.addedStyles.clear();
   }
 
+  // 拦截DOM操作方法，实现样式隔离
   private patchStyleMethods() {
     const originalAppendChild = Document.prototype.appendChild;
     const self = this;
-    
+
+    // 代理appendChild方法
     Document.prototype.appendChild = function(node) {
       if (node.tagName === 'STYLE') {
         self.addedStyles.add(node as HTMLStyleElement);
-        // 添加作用域前缀
+        // 为样式添加作用域前缀，避免全局污染
         node.textContent = self.addScopePrefix(node.textContent);
       }
       return originalAppendChild.call(this, node);
     };
   }
 
-  private addScopePrefix(css: string): string {
-    const scopePrefix = `[data-qiankun="${this.appName}"]`;
-    return css.replace(/([^{}]+){/g, `${scopePrefix} $1 {`);
+  // 为CSS选择器添加作用域前缀
+  private addScopePrefix(cssText: string): string {
+    // 实现CSS作用域前缀逻辑，为每个选择器添加微应用标识
+    return cssText.replace(/([^{}]+){/g, (match, selector) => {
+      return `[data-micro-app] ${selector.trim()} {`;
+    });
   }
 }
 ```
 
 ### 2. JavaScript 沙箱
 
+JavaScript 沙箱用于隔离不同微应用的全局变量和副作用，防止应用间的相互干扰。Proxy 沙箱是目前最主流的实现方案，它通过 ES6 的 Proxy 特性来拦截和控制对全局对象的访问。
+
+**沙箱的核心功能：**
+
+- **全局变量隔离**：防止微应用污染全局 window 对象
+- **副作用记录**：记录微应用对全局环境的修改
+- **环境恢复**：应用卸载时恢复全局环境到原始状态
+- **API 代理**：确保微应用中的 this 指向正确
+
 ```javascript
 // Proxy 沙箱实现
+// 基于ES6 Proxy的JavaScript沙箱，提供完整的全局变量隔离
 class ProxySandbox {
-  private proxy: WindowProxy;
-  private fakeWindow: Record<string, any> = {};
-  private addedPropsMap: Map<string, any> = new Map();
-  private modifiedPropsMap: Map<string, any> = new Map();
-  private currentUpdatedPropsValueMap: Map<string, any> = new Map();
+  private proxy: WindowProxy; // 代理的window对象
+  private fakeWindow: Record<string, any> = {}; // 虚拟window对象
+  private addedPropsMap: Map<string, any> = new Map(); // 记录新增的全局属性
+  private modifiedPropsMap: Map<string, any> = new Map(); // 记录修改的全局属性原始值
+  private currentUpdatedPropsValueMap: Map<string, any> = new Map(); // 记录当前的属性值
 
   constructor(name: string) {
     this.name = name;
     this.proxy = this.createProxy();
   }
 
+  // 创建Proxy代理，拦截对window对象的所有操作
   private createProxy(): WindowProxy {
     const { fakeWindow, addedPropsMap, modifiedPropsMap, currentUpdatedPropsValueMap } = this;
-    
+
     return new Proxy(fakeWindow, {
+      // 拦截属性设置操作
       set: (target: Record<string, any>, prop: string, value: any): boolean => {
         const originalValue = (window as any)[prop];
-        
+
+        // 如果是新增属性，记录到addedPropsMap
         if (!window.hasOwnProperty(prop)) {
           addedPropsMap.set(prop, value);
         } else if (!modifiedPropsMap.has(prop)) {
+          // 如果是修改已有属性，记录原始值
           modifiedPropsMap.set(prop, originalValue);
         }
-        
+
+        // 记录当前值并设置到真实window对象
         currentUpdatedPropsValueMap.set(prop, value);
         (window as any)[prop] = value;
-        
+
         return true;
       },
-      
+
+      // 拦截属性获取操作
       get: (target: Record<string, any>, prop: string): any => {
         if (prop === Symbol.unscopables) return undefined;
-        
+
+        // 对于window相关的属性，返回代理对象本身
         if (['top', 'parent', 'window', 'self'].includes(prop)) {
           return this.proxy;
         }
-        
+
+        // 获取真实window对象的属性值
         const value = (window as any)[prop];
+        // 如果是函数，绑定正确的this上下文
         return typeof value === 'function' ? value.bind(window) : value;
       },
-      
+
+      // 拦截in操作符
       has: (target: Record<string, any>, prop: string): boolean => {
         return prop in window;
       }
     });
   }
 
+  // 启动沙箱，恢复微应用的全局状态
   start() {
-    // 激活沙箱
+    // 将之前记录的属性值重新设置到window对象
     this.currentUpdatedPropsValueMap.forEach((value, prop) => {
       (window as any)[prop] = value;
     });
   }
 
+  // 停止沙箱，清理微应用的全局副作用
   stop() {
-    // 恢复环境
+    // 删除微应用新增的全局属性
     this.addedPropsMap.forEach((_, prop) => {
       delete (window as any)[prop];
     });
-    
+
+    // 恢复被修改的全局属性到原始值
     this.modifiedPropsMap.forEach((value, prop) => {
       (window as any)[prop] = value;
     });
@@ -569,155 +749,261 @@ class ProxySandbox {
 
 ### 3. 应用间通信
 
-```javascript
-// 事件总线通信
-class EventBus {
-  private events: Map<string, Set<Function>> = new Map();
+微前端架构中，不同的微应用需要进行数据交换和状态同步。应用间通信是实现微前端协作的关键技术，常见的通信方式包括事件总线、全局状态管理、Props 传递等。
 
+**通信方式对比：**
+
+- **事件总线**：松耦合，适合简单的事件通知
+- **全局状态管理**：集中式状态，适合复杂的数据共享
+- **Props 传递**：直接传递，适合父子应用通信
+- **URL 参数**：通过路由传递，适合页面级数据传递
+
+#### 事件总线通信
+
+事件总线是最常用的微前端通信方式，通过发布-订阅模式实现应用间的松耦合通信：
+
+````javascript
+// 事件总线通信
+// 基于发布-订阅模式的事件总线，实现微应用间的解耦通信
+class EventBus {
+  private events: Map<string, Set<Function>> = new Map(); // 存储事件和回调函数的映射
+
+  // 订阅事件
   on(event: string, callback: Function) {
+    // 如果事件不存在，创建新的回调函数集合
     if (!this.events.has(event)) {
       this.events.set(event, new Set());
     }
+    // 添加回调函数到事件的订阅列表
     this.events.get(event)!.add(callback);
   }
 
+  // 取消订阅事件
   off(event: string, callback: Function) {
     const callbacks = this.events.get(event);
     if (callbacks) {
+      // 从订阅列表中移除指定的回调函数
       callbacks.delete(callback);
     }
   }
 
+  // 发布事件
   emit(event: string, data?: any) {
     const callbacks = this.events.get(event);
     if (callbacks) {
+      // 执行所有订阅了该事件的回调函数
       callbacks.forEach(callback => callback(data));
     }
   }
+
+  // 一次性订阅事件（执行一次后自动取消订阅）
+  once(event: string, callback: Function) {
+    const onceCallback = (data: any) => {
+      callback(data);
+      this.off(event, onceCallback); // 执行后立即取消订阅
+    };
+    this.on(event, onceCallback);
+  }
+
+  // 清除所有事件订阅
+  clear() {
+    this.events.clear();
+  }
 }
 
-// 全局状态管理
-class GlobalStateManager {
-  private state: Record<string, any> = {};
-  private listeners: Set<Function> = new Set();
+#### 全局状态管理
 
+全局状态管理提供了集中式的数据存储和状态同步机制，适合需要在多个微应用间共享复杂状态的场景：
+
+```javascript
+// 全局状态管理
+// 提供集中式的状态管理，支持多个微应用共享状态
+class GlobalStateManager {
+  private state: Record<string, any> = {}; // 全局状态存储
+  private listeners: Set<Function> = new Set(); // 状态变化监听器
+
+  // 更新全局状态
   setState(newState: Record<string, any>) {
+    // 合并新状态到现有状态
     this.state = { ...this.state, ...newState };
+    // 通知所有监听器状态已更新
     this.notifyListeners();
   }
 
+  // 获取当前全局状态（返回副本，防止直接修改）
   getState() {
     return { ...this.state };
   }
 
+  // 订阅状态变化
   subscribe(listener: Function) {
     this.listeners.add(listener);
+    // 返回取消订阅的函数
     return () => this.listeners.delete(listener);
   }
 
+  // 通知所有监听器状态已更新
   private notifyListeners() {
     this.listeners.forEach(listener => listener(this.state));
   }
 }
+````
 
+#### Props 传递通信
+
+Props 传递是最直接的通信方式，适合主应用向微应用传递配置和数据：
+
+```javascript
 // Props 传递
+// 定义微应用Props的接口
 interface MicroAppProps {
   [key: string]: any;
 }
 
+// Props管理器，负责管理和分发Props到各个微应用
 class PropsManager {
-  private propsMap: Map<string, MicroAppProps> = new Map();
+  private propsMap: Map<string, MicroAppProps> = new Map(); // 存储各应用的Props
 
+  // 设置指定微应用的Props
   setProps(appName: string, props: MicroAppProps) {
     this.propsMap.set(appName, props);
+    // 立即通知对应的微应用更新Props
     this.notifyApp(appName, props);
   }
 
+  // 获取指定微应用的Props
   getProps(appName: string): MicroAppProps {
     return this.propsMap.get(appName) || {};
   }
 
+  // 通知微应用Props已更新
   private notifyApp(appName: string, props: MicroAppProps) {
     const app = this.getApp(appName);
+    // 如果微应用提供了update方法，调用它来更新Props
     if (app && app.update) {
       app.update(props);
     }
+  }
+
+  // 获取微应用实例（需要根据实际的应用管理器实现）
+  private getApp(appName: string) {
+    // 这里应该返回对应的微应用实例
+    return window.__MICRO_APP_INSTANCES__?.[appName];
   }
 }
 ```
 
 ## 最佳实践与注意事项
 
+微前端架构的成功实施需要遵循一系列最佳实践，从应用拆分到性能优化，每个环节都需要仔细考虑。
+
 ### 1. 应用拆分原则
 
+合理的应用拆分是微前端成功的基础，需要平衡业务独立性、团队协作和技术复杂度：
+
+**拆分策略：**
+
+- **按业务域拆分**：根据业务功能模块进行拆分，确保高内聚低耦合
+- **按团队拆分**：考虑团队结构和职责边界
+- **按技术栈拆分**：允许不同团队使用最适合的技术栈
+- **按发布频率拆分**：将变化频繁的模块独立出来
+
 ```javascript
-// 按业务域拆分
+// 按业务域拆分示例
+// 这种拆分方式确保了业务逻辑的内聚性和团队的自主性
 const microApps = {
-  // 用户管理域
+  // 用户管理域 - 负责用户相关的所有功能
   userManagement: {
-    routes: ['/users', '/profile', '/settings'],
-    team: 'user-team',
-    tech: 'React + TypeScript'
+    routes: ["/users", "/profile", "/settings"], // 路由范围
+    team: "user-team", // 负责团队
+    tech: "React + TypeScript", // 技术栈选择
+    domain: "user", // 业务域标识
+    dependencies: ["@company/design-system"], // 依赖的共享库
   },
-  
-  // 订单管理域
+
+  // 订单管理域 - 处理订单生命周期管理
   orderManagement: {
-    routes: ['/orders', '/payments', '/refunds'],
-    team: 'order-team',
-    tech: 'Vue 3 + TypeScript'
+    routes: ["/orders", "/payments", "/refunds"],
+    team: "order-team",
+    tech: "Vue 3 + TypeScript",
+    domain: "order",
+    dependencies: ["@company/design-system", "@company/payment-sdk"],
   },
-  
-  // 商品管理域
+
+  // 商品管理域 - 管理商品信息和库存
   productManagement: {
-    routes: ['/products', '/inventory', '/categories'],
-    team: 'product-team',
-    tech: 'Angular + TypeScript'
-  }
+    routes: ["/products", "/inventory", "/categories"],
+    team: "product-team",
+    tech: "Angular + TypeScript",
+    domain: "product",
+    dependencies: ["@company/design-system", "@company/inventory-api"],
+  },
 };
 
-// 共享组件库
+// 共享组件库策略
+// 通过共享库减少重复开发，保持UI一致性
 const sharedComponents = {
-  designSystem: '@company/design-system',
-  utils: '@company/utils',
-  icons: '@company/icons'
+  designSystem: "@company/design-system", // 统一的设计系统
+  utils: "@company/utils", // 通用工具函数
+  icons: "@company/icons", // 图标库
+  api: "@company/api-client", // API客户端
+  auth: "@company/auth-sdk", // 认证SDK
 };
 ```
 
 ### 2. 性能优化
 
-```javascript
-// 预加载策略
-class PreloadManager {
-  private preloadedApps: Set<string> = new Set();
+微前端架构的性能优化是确保用户体验的关键，需要从资源加载、缓存策略、懒加载等多个维度进行优化：
 
+**核心优化策略：**
+
+- **预加载（Preload）**：提前加载可能需要的微应用资源
+- **懒加载（Lazy Load）**：按需加载微应用，减少初始加载时间
+- **缓存策略**：合理利用浏览器缓存和 CDN 缓存
+- **资源共享**：通过 Module Federation 等技术共享依赖
+- **代码分割**：将微应用拆分为更小的 chunk
+
+```javascript
+// 预加载策略实现
+// 通过预加载提升用户体验，减少切换应用时的等待时间
+class PreloadManager {
+  private preloadedApps: Set<string> = new Set(); // 记录已预加载的应用
+
+  // 预加载指定微应用的所有资源
   async preloadApp(appName: string, entry: string) {
+    // 避免重复预加载
     if (this.preloadedApps.has(appName)) {
       return;
     }
 
     try {
-      // 预加载 HTML
+      // 1. 预加载 HTML 入口文件
       const response = await fetch(entry);
       const html = await response.text();
-      
-      // 预加载静态资源
+
+      // 2. 解析HTML中的静态资源链接
       const { scripts, styles } = this.parseResources(html);
+
+      // 3. 并行预加载所有静态资源
       await Promise.all([
         ...scripts.map(src => this.preloadScript(src)),
         ...styles.map(href => this.preloadStyle(href))
       ]);
-      
+
+      // 4. 标记为已预加载
       this.preloadedApps.add(appName);
+      console.log(`App ${appName} preloaded successfully`);
     } catch (error) {
       console.error(`Failed to preload app ${appName}:`, error);
     }
   }
 
+  // 预加载JavaScript文件
   private preloadScript(src: string): Promise<void> {
     return new Promise((resolve, reject) => {
       const link = document.createElement('link');
-      link.rel = 'preload';
-      link.as = 'script';
+      link.rel = 'preload'; // 使用preload提示浏览器预加载
+      link.as = 'script'; // 指定资源类型
       link.href = src;
       link.onload = () => resolve();
       link.onerror = reject;
@@ -725,6 +1011,7 @@ class PreloadManager {
     });
   }
 
+  // 预加载CSS文件
   private preloadStyle(href: string): Promise<void> {
     return new Promise((resolve, reject) => {
       const link = document.createElement('link');
@@ -736,101 +1023,246 @@ class PreloadManager {
       document.head.appendChild(link);
     });
   }
+
+  // 解析HTML中的资源链接（需要实现）
+  private parseResources(html: string): { scripts: string[], styles: string[] } {
+    // 使用正则表达式或DOM解析器提取script和link标签
+    // 返回资源URL数组
+    return { scripts: [], styles: [] };
+  }
 }
 
 // 懒加载实现
+// 基于Intersection Observer API实现微应用的按需加载
 class LazyLoadManager {
   private observer: IntersectionObserver;
 
   constructor() {
+    // 创建交叉观察器，当元素进入视口时触发加载
     this.observer = new IntersectionObserver(
       this.handleIntersection.bind(this),
-      { threshold: 0.1 }
+      {
+        threshold: 0.1, // 当10%的元素可见时触发
+        rootMargin: '50px' // 提前50px开始加载，提升用户体验
+      }
     );
   }
 
+  // 开始观察指定元素，当元素可见时加载对应的微应用
   observeApp(element: HTMLElement, appConfig: MicroAppConfig) {
+    // 将应用配置存储在元素的dataset中
     element.dataset.appConfig = JSON.stringify(appConfig);
+    // 开始观察元素
     this.observer.observe(element);
   }
 
+  // 处理元素与视口的交叉事件
   private async handleIntersection(entries: IntersectionObserverEntry[]) {
     for (const entry of entries) {
+      // 当元素进入视口时
       if (entry.isIntersecting) {
         const element = entry.target as HTMLElement;
         const appConfig = JSON.parse(element.dataset.appConfig!);
-        
-        // 停止观察
+
+        // 停止观察该元素，避免重复加载
         this.observer.unobserve(element);
-        
-        // 加载微应用
-        await this.loadApp(appConfig, element);
+
+        // 异步加载微应用
+        try {
+          await this.loadApp(appConfig, element);
+          console.log(`Lazy loaded app: ${appConfig.name}`);
+        } catch (error) {
+          console.error(`Failed to lazy load app: ${appConfig.name}`, error);
+          // 可以在这里显示错误占位符
+          this.showErrorPlaceholder(element, error);
+        }
       }
     }
+  }
+
+  // 加载微应用的具体实现（需要根据实际框架实现）
+  private async loadApp(appConfig: MicroAppConfig, container: HTMLElement): Promise<void> {
+    // 实际的应用加载逻辑
+    // 这里可以调用qiankun、single-spa等框架的加载方法
+  }
+
+  // 显示错误占位符
+  private showErrorPlaceholder(element: HTMLElement, error: Error): void {
+    element.innerHTML = `
+      <div class="micro-app-error">
+        <h3>应用加载失败</h3>
+        <p>${error.message}</p>
+        <button onclick="location.reload()">重试</button>
+      </div>
+    `;
+  }
+
+  // 销毁观察器
+  destroy(): void {
+    this.observer.disconnect();
   }
 }
 ```
 
 ### 3. 错误处理与监控
 
+微前端架构中的错误处理和监控至关重要，因为多个应用的复杂性增加了出错的可能性。需要建立完善的错误边界、监控体系和恢复机制：
+
+**核心监控策略：**
+
+- **错误边界（Error Boundary）**：防止单个微应用的错误影响整个系统
+- **性能监控**：监控各微应用的加载时间、运行性能
+- **错误上报**：收集和分析错误信息，快速定位问题
+- **健康检查**：定期检查微应用的可用性
+- **降级策略**：当微应用不可用时提供备用方案
+
 ```javascript
-// 错误边界
+// 错误边界实现
+// React错误边界组件，用于捕获微应用中的JavaScript错误
 class MicroAppErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
-    this.state = { hasError: false, error: null };
+    // 初始化错误状态
+    this.state = { hasError: false, error: null, errorInfo: null };
   }
 
+  // 静态方法：当子组件抛出错误时更新state
   static getDerivedStateFromError(error) {
+    // 更新state，下次渲染将显示错误UI
     return { hasError: true, error };
   }
 
+  // 组件捕获到错误时的回调
   componentDidCatch(error, errorInfo) {
-    // 上报错误
+    // 保存错误详情
+    this.setState({ errorInfo });
+
+    // 上报错误到监控系统
     this.reportError(error, errorInfo);
+
+    // 记录错误日志
+    console.error("MicroApp Error Boundary caught an error:", error, errorInfo);
   }
 
+  // 错误上报方法
   reportError(error, errorInfo) {
     const errorData = {
-      message: error.message,
-      stack: error.stack,
-      componentStack: errorInfo.componentStack,
-      appName: this.props.appName,
-      timestamp: new Date().toISOString()
+      message: error.message, // 错误消息
+      stack: error.stack, // 错误堆栈
+      componentStack: errorInfo.componentStack, // 组件堆栈
+      appName: this.props.appName, // 微应用名称
+      timestamp: new Date().toISOString(), // 错误时间
+      userAgent: navigator.userAgent, // 浏览器信息
+      url: window.location.href, // 当前页面URL
+      userId: this.props.userId || "anonymous", // 用户ID
     };
-    
-    // 发送到监控系统
-    fetch('/api/errors', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(errorData)
+
+    // 发送到监控系统（如Sentry、LogRocket等）
+    fetch("/api/errors", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(errorData),
+    }).catch((reportError) => {
+      // 如果错误上报失败，使用备用方案
+      console.error("Failed to report error:", reportError);
+      // 可以尝试其他上报方式，如localStorage暂存
     });
   }
 
+  // 重试方法
+  handleRetry = () => {
+    this.setState({ hasError: false, error: null, errorInfo: null });
+  };
+
   render() {
+    // 如果有错误，渲染错误UI
     if (this.state.hasError) {
       return (
         <div className="error-fallback">
           <h2>微应用加载失败</h2>
           <p>应用名称：{this.props.appName}</p>
-          <button onClick={() => window.location.reload()}>
-            重新加载
-          </button>
+          <details style={{ whiteSpace: "pre-wrap" }}>
+            <summary>错误详情</summary>
+            {this.state.error && this.state.error.toString()}
+            <br />
+            {this.state.errorInfo.componentStack}
+          </details>
+          <div className="error-actions">
+            <button onClick={this.handleRetry}>重试</button>
+            <button onClick={() => window.location.reload()}>
+              重新加载页面
+            </button>
+          </div>
         </div>
       );
     }
 
+    // 正常情况下渲染子组件
     return this.props.children;
   }
 }
 
-// 使用错误边界
-function MicroAppWrapper({ appName, ...props }) {
+// 微应用包装器组件
+// 为每个微应用提供错误边界保护
+function MicroAppWrapper({ appName, userId, ...props }) {
   return (
-    <MicroAppErrorBoundary appName={appName}>
+    <MicroAppErrorBoundary appName={appName} userId={userId}>
       <MicroApp name={appName} {...props} />
     </MicroAppErrorBoundary>
   );
+}
+
+// 全局错误监控
+// 捕获未被错误边界处理的错误
+class GlobalErrorMonitor {
+  constructor() {
+    this.setupGlobalErrorHandlers();
+  }
+
+  setupGlobalErrorHandlers() {
+    // 捕获JavaScript运行时错误
+    window.addEventListener("error", (event) => {
+      this.reportGlobalError({
+        type: "javascript",
+        message: event.message,
+        filename: event.filename,
+        lineno: event.lineno,
+        colno: event.colno,
+        error: event.error,
+      });
+    });
+
+    // 捕获Promise未处理的rejection
+    window.addEventListener("unhandledrejection", (event) => {
+      this.reportGlobalError({
+        type: "promise",
+        reason: event.reason,
+        promise: event.promise,
+      });
+    });
+
+    // 捕获资源加载错误
+    window.addEventListener(
+      "error",
+      (event) => {
+        if (event.target !== window) {
+          this.reportGlobalError({
+            type: "resource",
+            element: event.target.tagName,
+            source: event.target.src || event.target.href,
+            message: "Resource loading failed",
+          });
+        }
+      },
+      true
+    );
+  }
+
+  reportGlobalError(errorData) {
+    // 上报全局错误
+    console.error("Global error detected:", errorData);
+    // 发送到监控系统
+  }
 }
 ```
 

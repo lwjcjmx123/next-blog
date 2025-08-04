@@ -12,9 +12,6 @@ const nextConfig = {
   experimental: {
     mdxRs: true,
   },
-  devServer: {
-    port: 4000,
-  },
   images: {
     domains: ["localhost", "your-cdn-domain.com"],
   },

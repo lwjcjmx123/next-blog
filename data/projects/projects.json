@@ -8,7 +8,7 @@
     "technologies": ["Next.js", "TypeScript", "Tailwind CSS", "MDX", "Vercel"],
     "githubUrl": "https://github.com/lwjcjmx123/next-blog",
     "liveUrl": "https://lwjcjmx123.com",
-    "imageUrl": "/images/projects/blog-preview.jpg",
+    "imageUrl": "/images/projects/blog-preview.svg",
     "featured": true,
     "published": true,
     "createdAt": "2024-01-15T00:00:00Z"
@@ -75,7 +75,7 @@
     ],
     "githubUrl": "https://github.com/lwjcjmx123/words-browser-extension",
     "liveUrl": "",
-    "imageUrl": "/images/projects/words-extension-preview.jpg",
+    "imageUrl": "/images/projects/words-extension-preview.svg",
     "featured": true,
     "published": true,
     "createdAt": "2024-03-15T00:00:00Z"

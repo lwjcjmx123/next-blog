@@ -1,0 +1,371 @@
+---
+title: "自定义组件脚手架系统设计与实现"
+slug: "custom-component-scaffold"
+excerpt: "基于模板引擎的组件脚手架系统，实现快速生成标准化Vue + TSX组件，提升开发效率和代码质量"
+published: true
+date: "2024-05-15"
+category: "前端工程化"
+tags: ["脚手架", "组件开发", "自动化", "模板引擎"]
+author: "Long"
+readingTime: "8分钟"
+---
+
+## 概述
+
+在现代前端开发中，组件化是提高代码复用性和维护性的关键。自定义组件脚手架系统通过标准化的模板和自动化流程，帮助开发者快速生成符合团队规范的Vue + TSX组件代码。
+
+## 核心设计理念
+
+### 1. 标准化模板
+
+- **统一结构**: 确保所有组件遵循相同的文件组织结构
+- **最佳实践**: 内置 TypeScript、测试、文档等最佳实践
+- **可扩展性**: 支持自定义模板和配置
+
+### 2. 智能生成
+
+- **交互式配置**: 通过命令行交互收集组件信息
+- **动态模板**: 根据配置动态生成不同类型的组件
+- **依赖管理**: 自动处理组件依赖和导入
+
+## 系统架构
+
+### 整体架构图
+
+<ArchitectureDiagram
+  title="组件脚手架系统架构"
+  layers={[
+    {
+      name: "CLI交互层",
+      color: "#3b82f6",
+      components: ["用户输入", "参数验证", "交互问答", "命令解析"],
+    },
+    {
+      name: "脚手架核心",
+      color: "#8b5cf6",
+      components: ["配置管理", "流程控制", "数据准备", "模板渲染"],
+    },
+    {
+      name: "模板引擎",
+      color: "#f59e0b",
+      components: ["变量替换", "条件渲染", "循环处理", "模板解析"],
+    },
+    {
+      name: "文件生成",
+      color: "#10b981",
+      components: ["Vue+TSX组件", "样式文件", "测试文件", "文档文件"],
+    },
+  ]}
+/>
+
+```typescript
+/**
+ * Vue组件脚手架核心类
+ * 负责Vue + TSX组件生成的整个流程管理
+ */
+class VueComponentScaffold {
+  constructor(config: any = {}) {
+    this.config = {
+      templatesDir: "./templates",
+      outputDir: "./src/components",
+      ...config,
+    };
+    this.templateEngine = new TemplateEngine();
+  }
+
+  /**
+   * 生成Vue组件
+   * @param {Object} options - 组件配置选项
+   */
+  async generateComponent(options: any) {
+    // 验证配置
+    this.validateOptions(options);
+
+    // 准备模板数据
+    const templateData = this.prepareTemplateData(options);
+
+    // 生成文件
+    await this.generateFiles(templateData);
+
+    // 后处理
+    await this.postProcess(options);
+
+    console.log(`✅ Vue组件 ${options.name} 生成成功!`);
+  }
+
+  /**
+   * 准备模板数据
+   */
+  prepareTemplateData(options: any) {
+    return {
+      componentName: options.name,
+      pascalName: this.toPascalCase(options.name),
+      kebabName: this.toKebabCase(options.name),
+      hasProps: options.props && options.props.length > 0,
+      props: options.props || [],
+      hasComposables: options.type === "composable",
+      hasEmits: options.emits && options.emits.length > 0,
+      emits: options.emits || [],
+      timestamp: new Date().toISOString(),
+      author: options.author || "Unknown",
+    };
+  }
+}
+```
+
+## 模板引擎实现
+
+```typescript
+/**
+ * 简化的模板引擎
+ * 支持变量替换和条件渲染
+ */
+class TemplateEngine {
+  /**
+   * 渲染模板
+   * @param {string} template - 模板字符串
+   * @param {Object} data - 模板数据
+   */
+  render(template: string, data: any): string {
+    let result = template;
+
+    // 变量替换 {{variable}}
+    result = result.replace(/\{\{\s*(\w+)\s*\}\}/g, (match, key) => {
+      return data[key] || "";
+    });
+
+    // 条件渲染 {{#if condition}} ... {{/if}}
+    result = result.replace(
+      /\{\{#if\s+(\w+)\}\}([\s\S]*?)\{\{\/if\}\}/g,
+      (match, condition, content) => {
+        return data[condition] ? content : "";
+      }
+    );
+
+    return result;
+  }
+}
+```
+
+## 组件模板示例
+
+### Vue + TSX 组件模板
+
+```typescript
+// templates/component.tsx.template
+import { defineComponent{{#if hasComposables}}, ref{{/if}} } from 'vue';
+import './{{kebabName}}.scss';
+
+{{#if hasProps}}
+interface {{pascalName}}Props {
+{{#each props}}
+  {{name}}: {{type}};
+{{/each}}
+}
+{{/if}}
+
+/**
+ * {{pascalName}} 组件
+ * @author {{author}}
+ * @created {{timestamp}}
+ */
+export default defineComponent({
+  name: '{{pascalName}}',
+{{#if hasProps}}
+  props: {
+{{#each props}}
+    {{name}}: {
+      type: {{type}},
+      required: true
+    },
+{{/each}}
+  },
+{{/if}}
+{{#if hasEmits}}
+  emits: [{{#each emits}}'{{name}}'{{#unless @last}}, {{/unless}}{{/each}}],
+{{/if}}
+  setup(props{{#if hasEmits}}, { emit }{{/if}}) {
+{{#if hasComposables}}
+    const state = ref();
+{{/if}}
+
+    return () => (
+      <div class="{{kebabName}}">
+        <h2>{{pascalName}} Component</h2>
+{{#if hasProps}}
+{{#each props}}
+        <p>{{name}}: {props.{{name}}}</p>
+{{/each}}
+{{/if}}
+      </div>
+    );
+  }
+});
+```
+
+### 样式模板
+
+```scss
+// templates/component.scss.template
+.{{kebabName}} {
+  padding: 16px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  background: #fff;
+  transition: all 0.3s ease;
+
+  &:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  }
+
+  h2 {
+    margin: 0 0 16px 0;
+    color: #333;
+    font-size: 1.5rem;
+    font-weight: 600;
+  }
+
+  p {
+    margin: 8px 0;
+    color: #666;
+    line-height: 1.5;
+  }
+}
+```
+
+## CLI 交互界面
+
+```typescript
+/**
+ * Vue组件命令行交互界面
+ */
+class VueComponentCLI {
+  async run() {
+    console.log("🚀 Vue组件脚手架生成器");
+
+    const answers = await this.promptQuestions();
+    const scaffold = new VueComponentScaffold();
+
+    await scaffold.generateComponent(answers);
+  }
+
+  /**
+   * 交互式问题收集
+   */
+  async promptQuestions() {
+    const inquirer = require("inquirer");
+
+    return await inquirer.prompt([
+      {
+        type: "input",
+        name: "name",
+        message: "组件名称:",
+        validate: (input: string) => {
+          if (!input.trim()) return "组件名称不能为空";
+          if (!/^[A-Za-z][A-Za-z0-9]*$/.test(input)) {
+            return "组件名称必须以字母开头，只能包含字母和数字";
+          }
+          return true;
+        },
+      },
+      {
+        type: "list",
+        name: "type",
+        message: "组件类型:",
+        choices: [
+          { name: "基础组件", value: "basic" },
+          { name: "组合式组件", value: "composable" },
+          { name: "表单组件", value: "form" },
+          { name: "业务组件", value: "business" },
+        ],
+      },
+      {
+        type: "confirm",
+        name: "includeTests",
+        message: "是否生成测试文件?",
+        default: true,
+      },
+      {
+        type: "confirm",
+        name: "includeStorybook",
+        message: "是否生成Storybook文档?",
+        default: false,
+      },
+    ]);
+  }
+}
+```
+
+## 使用示例
+
+### 基础用法
+
+```bash
+# 安装脚手架工具
+npm install -g @company/vue-component-scaffold
+
+# 生成Vue组件
+vue-component-scaffold create
+
+# 或直接指定参数
+vue-component-scaffold create --name UserCard --type composable --props
+```
+
+### 生成的文件结构
+
+```
+src/components/UserCard/
+├── index.ts                 # 导出文件
+├── UserCard.tsx            # Vue + TSX组件主文件
+├── UserCard.scss           # 样式文件
+├── UserCard.test.ts        # 测试文件
+├── UserCard.stories.ts     # Storybook文档
+└── types.ts                # 类型定义文件
+```
+
+## 配置文件
+
+```json
+// vue-scaffold.config.json
+{
+  "templatesDir": "./templates",
+  "outputDir": "./src/components",
+  "defaultAuthor": "蔚来前端团队",
+  "styleExtension": "scss",
+  "testFramework": "vitest",
+  "framework": "vue3",
+  "typescript": true,
+  "customTemplates": {
+    "modal": "./custom-templates/modal",
+    "form": "./custom-templates/form",
+    "table": "./custom-templates/table"
+  },
+  "hooks": {
+    "postGenerate": "npm run lint:fix && npm run type-check"
+  }
+}
+```
+
+## 核心优势
+
+### 1. 提升开发效率
+
+- **快速生成**: 几秒钟内生成完整的Vue + TSX组件结构
+- **减少重复**: 避免手动创建相同的文件结构和样板代码
+- **标准化**: 确保团队Vue组件代码风格一致
+
+### 2. 质量保证
+
+- **最佳实践**: 内置 Vue 3 Composition API、TypeScript、Vitest 测试等最佳实践
+- **错误预防**: 通过模板减少常见Vue组件编码错误
+- **文档完整**: 自动生成组件文档和Storybook示例
+
+### 3. 可扩展性
+
+- **自定义模板**: 支持团队特定的Vue组件模板
+- **插件系统**: 可扩展的钩子和插件机制
+- **配置灵活**: 丰富的配置选项满足不同Vue项目需求
+
+## 总结
+
+自定义Vue组件脚手架系统通过标准化模板和自动化流程，显著提升了Vue + TSX组件开发效率和代码质量。它不仅减少了重复性工作，还确保了团队Vue代码的一致性和可维护性。通过合理的架构设计和灵活的配置机制，该系统能够适应不同Vue项目团队的开发需求，特别适合蔚来汽车这样使用Vue 3 + TypeScript技术栈的团队，是现代前端工程化的重要工具。
