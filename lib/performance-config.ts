@@ -19,7 +19,7 @@ export interface PerformanceConfig {
 export interface PerformanceMetricData {
   name: string;
   value: number;
-  rating: 'good' | 'needs-improvement' | 'poor';
+  rating: "good" | "needs-improvement" | "poor";
   url: string;
   timestamp: number;
   userAgent?: string;
@@ -41,8 +41,8 @@ export interface PerformanceThresholds {
  */
 export const defaultPerformanceConfig: PerformanceConfig = {
   enabled: true,
-  enableConsoleLog: process.env.NODE_ENV === 'development',
-  enableDashboard: process.env.NODE_ENV === 'development',
+  enableConsoleLog: process.env.NODE_ENV === "development",
+  enableDashboard: process.env.NODE_ENV === "development",
   sampleRate: 1.0, // 100% 采样
   thresholds: {
     LCP: { good: 2500, poor: 4000 },
@@ -50,26 +50,26 @@ export const defaultPerformanceConfig: PerformanceConfig = {
     CLS: { good: 0.1, poor: 0.25 },
     FCP: { good: 1800, poor: 3000 },
     TTFB: { good: 200, poor: 500 },
-    TEST: { good: 1000, poor: 2000 }
-  }
+    TEST: { good: 1000, poor: 2000 },
+  },
 };
 
 /**
  * 获取性能评级
  */
 export function getPerformanceRating(
-  metric: string, 
-  value: number, 
+  metric: string,
+  value: number,
   thresholds: PerformanceThresholds
-): 'good' | 'needs-improvement' | 'poor' {
+): "good" | "needs-improvement" | "poor" {
   const threshold = thresholds[metric as keyof PerformanceThresholds];
-  if (!threshold) return 'good';
-  
-  return value <= threshold.good 
-    ? 'good' 
-    : value <= threshold.poor 
-    ? 'needs-improvement' 
-    : 'poor';
+  if (!threshold) return "good";
+
+  return value <= threshold.good
+    ? "good"
+    : value <= threshold.poor
+    ? "needs-improvement"
+    : "poor";
 }
 
 /**
@@ -83,28 +83,28 @@ export function shouldSample(sampleRate: number): boolean {
  * 获取连接类型信息
  */
 export function getConnectionInfo(): string {
-  if (typeof navigator !== 'undefined' && 'connection' in navigator) {
+  if (typeof navigator !== "undefined" && "connection" in navigator) {
     const connection = (navigator as any).connection;
-    return connection?.effectiveType || 'unknown';
+    return connection?.effectiveType || "unknown";
   }
-  return 'unknown';
+  return "unknown";
 }
 
 /**
  * 获取设备信息
  */
 export function getDeviceInfo() {
-  if (typeof navigator === 'undefined') {
+  if (typeof navigator === "undefined") {
     return {
-      userAgent: 'unknown',
-      platform: 'unknown',
-      language: 'unknown'
+      userAgent: "unknown",
+      platform: "unknown",
+      language: "unknown",
     };
   }
 
   return {
     userAgent: navigator.userAgent,
     platform: navigator.platform,
-    language: navigator.language
+    language: navigator.language,
   };
 }
